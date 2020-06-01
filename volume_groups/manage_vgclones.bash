@@ -110,7 +110,7 @@ ssh ${acct}@${CVIP} /usr/local/nutanix/bin/acli vg.clone ${pre}-copy-${vg[0]} cl
 ## Step 4: Thaw Application
 # Replace the following line with application thaw command
 # TODO-2
-ssh ${APP_ACCT}@${APP_IP} "echo -n "Pause Application on Server: " ; /bin/hostname "
+ssh ${APP_ACCT}@${APP_IP} "echo -n "Resume the Application on Server: " ; /bin/hostname "
 echo ""
 
 ## Step 5: Mount the clone

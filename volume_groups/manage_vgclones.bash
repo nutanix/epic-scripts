@@ -25,16 +25,16 @@
 # Conifugre these parameters to match your environment
 # TODO-1
 # ODB Server
-APP_IP="10.50.70.11"
+APP_IP="10.0.0.110"
 APP_ACCT="root"
 
 # Nutanix Details
 acct="nutanix"
-CVIP="10.50.0.152"
+CVIP="10.0.0.152"
 backupVM="Centos1"
 
 # Volume Groups to be cloned
-vg[0]="genio-vg1"
+vg[0]="app-vg1"
 # Linux LVM Volume Group name
 lvmvg[0]="prdvg"
 
@@ -88,7 +88,7 @@ numclone=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | grep [0-9].
 # Delete expired clones
 echo "Current Number of Clones " $numclone " for " ${vg[0]}
 while(( numclone >= num_keep )); do
-  rmvg=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | /usr/bin/grep [0-9].*-copy-genio-vg1 | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
+  rmvg=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | /usr/bin/grep [0-9].*-copy-${vg[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
   echo "Removing VG " ${rmvg}
   echo  ${acct}@${CVIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"
   ssh ${acct}@${CVIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"

@@ -31,6 +31,7 @@ APP_ACCT="root"
 # Nutanix Details
 acct="nutanix"
 CVIP="10.0.0.152"
+# Name of backup VM in AHV (not hostname)
 backupVM="Centos1"
 
 # Volume Groups to be cloned

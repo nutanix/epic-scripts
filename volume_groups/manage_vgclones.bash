@@ -34,7 +34,7 @@ CVIP="10.0.0.152"
 # Name of backup VM in AHV (not hostname)
 backupVM="Centos1"
 
-# Volume Groups to be cloned
+# Nutanix volume group to be cloned
 vg[0]="app-vg1"
 # Linux LVM Volume Group name
 lvmvg[0]="prdvg"

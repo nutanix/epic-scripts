@@ -30,7 +30,7 @@ APP_ACCT="root"
 
 # Nutanix Details
 acct="nutanix"
-CVIP="10.0.0.152"
+CVMIP="10.0.0.152"
 # Name of backup VM in AHV (not hostname)
 backupVM="Centos1"
 
@@ -59,7 +59,7 @@ getmyvmid () {
 #   Match this hostname to the vm name
 getmyvmname () {
   ### What host am I on?
-  vmname=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vm.list | grep ${1} " 2> /dev/null | awk '{ print $1}'`
+  vmname=`ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vm.list | grep ${1} " 2> /dev/null | awk '{ print $1}'`
   echo $vmname
 }
 myvmid=$(getmyvmid)
@@ -74,26 +74,26 @@ umount ${mp[0]}
 
 # Detach existing clones from VM
 echo "Detach previous clone"
-for i in `ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | grep 'copy-${vg[0]}' | awk '{ print $1 }'" 2> /dev/null`
+for i in `ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.list | grep 'copy-${vg[0]}' | awk '{ print $1 }'" 2> /dev/null`
 do
-  cnt=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
+  cnt=`ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
   #echo "Count for " $i " is " $cnt
   if (( cnt > 0 )); then
-      ret=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.detach_from_vm ${i} ${myvmname} " 2> /dev/null`
+      ret=`ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.detach_from_vm ${i} ${myvmname} " 2> /dev/null`
       echo "Detached clone " ${i} " Ret = " $ret
   fi
 done
 
-numclone=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | grep [0-9].*-copy-${vg[0]} | wc -l" 2> /dev/null`
+numclone=`ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.list | grep [0-9].*-copy-${vg[0]} | wc -l" 2> /dev/null`
 
 # Delete expired clones
 echo "Current Number of Clones " $numclone " for " ${vg[0]}
 while(( numclone >= num_keep )); do
-  rmvg=`ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.list | /usr/bin/grep [0-9].*-copy-${vg[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
+  rmvg=`ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.list | /usr/bin/grep [0-9].*-copy-${vg[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
   echo "Removing VG " ${rmvg}
-  echo  ${acct}@${CVIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"
-  ssh ${acct}@${CVIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"
-  numclone=`ssh ${acct}@${CVIP} /usr/local/nutanix/bin/acli vg.list | grep [0-9].*-copy-${vg[0]} | wc -l`
+  echo  ${acct}@${CVMIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"
+  ssh ${acct}@${CVMIP} "/usr/bin/echo yes | /usr/local/nutanix/bin/acli vg.delete ${rmvg}"
+  numclone=`ssh ${acct}@${CVMIP} /usr/local/nutanix/bin/acli vg.list | grep [0-9].*-copy-${vg[0]} | wc -l`
 done
 
 ## Step 2: Freeze Application
@@ -105,7 +105,7 @@ echo ""
 ## Step 3: Clone the VG
 pre=`date +%s`
 echo "Creating new clone " ${pre}-copy-${vg[0]}
-ssh ${acct}@${CVIP} /usr/local/nutanix/bin/acli vg.clone ${pre}-copy-${vg[0]} clone_from_vg=${vg[0]}
+ssh ${acct}@${CVMIP} /usr/local/nutanix/bin/acli vg.clone ${pre}-copy-${vg[0]} clone_from_vg=${vg[0]}
    
 
 ## Step 4: Thaw Application
@@ -118,7 +118,7 @@ echo ""
 
 # Attach new clone
 echo "Attach " ${pre}-copy-${vg[0]}
-ssh ${acct}@${CVIP} "/usr/local/nutanix/bin/acli vg.attach_to_vm ${pre}-copy-${vg[0]} ${backupVM}"
+ssh ${acct}@${CVMIP} "/usr/local/nutanix/bin/acli vg.attach_to_vm ${pre}-copy-${vg[0]} ${backupVM}"
 
 # Clean up LVM metadata
 pvscan --cache

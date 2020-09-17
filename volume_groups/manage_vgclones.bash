@@ -24,7 +24,7 @@
 ######
 # Conifugre these parameters to match your environment
 # TODO-1
-# ODB Server
+# Server to be backed up
 APP_IP="10.0.0.110"
 APP_ACCT="root"
 

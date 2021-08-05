@@ -62,18 +62,18 @@
 # Target ODB VM Details
 # - This would be a VM on the same cluster as the AHV_MOUNT_VM
 # - This is used to reach into that VM and do the freeze/thaw commands
-TARGET_ODB_IP="10.0.0.110"
-TARGET_ODB_ACCT="root"
+TARGET_ODB_IP="10.20.30.40"
+TARGET_ODB_ACCT="epicadm"
 TARGET_ODB_ENV[0]="poc"
 
 # Nutanix AOS Cluster Details
 # - Use the IP of any AOS CVM (controller VM) in the target cluster
 CVM_ACCT="nutanix"
-CVM_IP="10.0.0.152"
+CVM_IP="10.20.30.50"
 
 # Utility/Mount VM Details
 # - This is the VM in AHV that will mount the disk clones
-AHV_MOUNT_VM="Centos1"
+AHV_MOUNT_VM="epic-odb-utility1"
 
 # Nutanix Volume Group (VG) name
 # - This script assumes there is a single data volume group per backup
@@ -89,7 +89,7 @@ LVM_VG[0]="prdvg"
 VMDISK_UUID[0]="58e2606a-055c-40da-9f71-58cf55957936"
 
 # Mount point for volume group
-MP[0]="/backup/prd01"
+MP[0]="/replaceme/${TARGET_ODB_ENV[0]}"
 
 # Number of clones to keep
 # - This is useful to keep a couple of the recent clones on the system, such
@@ -130,33 +130,32 @@ echo "This VM name is " $myvmname " vm_uuid "  $myvmid
 ## Step 1: Check for old clones and remove any over NUM_KEEP
 # Clone order is based on EPOCH timestamp name prefix
 
-# TEMPORARY - COMMENTED OUT FOR BH TST
-# # Unmount cloned file system
-# umount ${MP[0]}
+# Unmount cloned file system
+umount ${MP[0]}
 
-# # Detach existing clones from VM
-# echo "Detach previous clone"
-# for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${NTNX_VG[0]}' | awk '{ print $1 }'" 2> /dev/null`
-# do
-#   cnt=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
-#   #echo "Count for " $i " is " $cnt
-#   if (( cnt > 0 )); then
-#       ret=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.detach_from_vm ${i} ${myvmname} " 2> /dev/null`
-#       echo "Detached clone " ${i} " Ret = " $ret
-#   fi
-# done
+# Detach existing clones from VM
+echo "Detach previous clone"
+for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${NTNX_VG[0]}' | awk '{ print $1 }'" 2> /dev/null`
+do
+  cnt=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
+  #echo "Count for " $i " is " $cnt
+  if (( cnt > 0 )); then
+      ret=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.detach_from_vm ${i} ${myvmname} " 2> /dev/null`
+      echo "Detached clone " ${i} " Ret = " $ret
+  fi
+done
 
-# numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l" 2> /dev/null`
+numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l" 2> /dev/null`
 
-# # Delete expired clones
-# echo "Current Number of Clones " $numclone " for " ${NTNX_VG[0]}
-# while(( numclone >= NUM_KEEP )); do
-#   rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy-${NTNX_VG[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
-#   echo "Removing VG " ${rmvg}
-#   echo  ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
-#   ssh ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
-#   numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l`
-# done
+# Delete expired clones
+echo "Current Number of Clones " $numclone " for " ${NTNX_VG[0]}
+while(( numclone >= NUM_KEEP )); do
+  rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy-${NTNX_VG[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
+  echo "Removing VG " ${rmvg}
+  echo  ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
+  ssh ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
+  numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l`
+done
 
 #------------------------------------------------------------------------------
 
@@ -167,10 +166,8 @@ ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.create ${PREFIX_DATE}-copy-${TARGET_ODB_EN
 
 #------------------------------------------------------------------------------
 
-## Step 2: Freeze Application
-# Replace the following line with application freeze command
-# TODO: put the actual environment freeze commands here
-ssh ${TARGET_ODB_ACCT}@${TARGET_ODB_IP} "echo -n 'Pause Application on Server: ' ; /bin/hostname "
+## Step 2: Freeze target ODB
+ssh ${TARGET_ODB_ACCT}@${TARGET_ODB_IP} "echo -n "Freezing ${TARGET_ODB_ENV[0]}: " ; /epic/${TARGET_ODB_ENV[0]}/bin/instfreeze"
 echo ""
 
 #------------------------------------------------------------------------------
@@ -192,10 +189,8 @@ ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.disk_create \
 
 #------------------------------------------------------------------------------
 
-## Step 4: Thaw Application
-# Replace the following line with application thaw command
-# TODO: put the actual environment thaw commands here
-ssh ${TARGET_ODB_ACCT}@${TARGET_ODB_IP} "echo -n "Resume the Application on Server: " ; /bin/hostname "
+## Step 4: Thaw target ODB
+ssh ${TARGET_ODB_ACCT}@${TARGET_ODB_IP} "echo -n "Thawing ${TARGET_ODB_ENV[0]}: " ; /epic/${TARGET_ODB_ENV[0]}/bin/instthaw"
 echo ""
 
 #------------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+set -ex
+
 #------------------------------------------------------------------------------
 
 # Copyright (c) 2021 Nutanix Inc. All rights reserved.
@@ -80,16 +82,22 @@ AHV_MOUNT_VM="epic-odb-utility1"
 # - This VG may contain many individual vdisks and this script assumes that all
 #   disk(s) within the Nutanix-side volume group are aggregated into
 #   a Linux LVM2 volume group.
-NTNX_VG[0]="app-vg1"
+# NTNX_SOURCE_VG[0]="epic-data-vg-name-here"
+
+# Nutanix vDisk (if not using VG's)
+# - Some environments may choose to not use a Nutanix VG, e.g. TST / POC, in
+#   which case a single vdisk, with a Linux LVM2 layered on top, is used.
+#   The internal mechanics in AHV are slightly different in this case, so
+#   instead of cloning a volume group, we'll have to clone the individual
+#   disk itself. Avoid this if you can, as it works fine, but makes this
+#   process much more opaque :).
+VMDISK_UUID[0]="58e2606a-055c-40da-9f71-58cf55957936"
 
 # Linux LVM Volume Group name
 LVM_VG[0]="prdvg"
 
-# TEMPORARY FOR BH TST
-VMDISK_UUID[0]="58e2606a-055c-40da-9f71-58cf55957936"
-
 # Mount point for volume group
-MP[0]="/replaceme/${TARGET_ODB_ENV[0]}"
+MP[0]="/mnt/backup-nfs/${TARGET_ODB_ENV[0]}"
 
 # Number of clones to keep
 # - This is useful to keep a couple of the recent clones on the system, such
@@ -132,10 +140,11 @@ echo "This VM name is " $myvmname " vm_uuid "  $myvmid
 
 # Unmount cloned file system
 umount ${MP[0]}
+vgremove ${LVM_VG[0]} -y
 
 # Detach existing clones from VM
 echo "Detach previous clone"
-for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${NTNX_VG[0]}' | awk '{ print $1 }'" 2> /dev/null`
+for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${TARGET_ODB_ENV[0]}' | awk '{ print $1 }'" 2> /dev/null`
 do
   cnt=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
   #echo "Count for " $i " is " $cnt
@@ -145,24 +154,18 @@ do
   fi
 done
 
-numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l" 2> /dev/null`
+numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | wc -l" 2> /dev/null`
 
 # Delete expired clones
-echo "Current Number of Clones " $numclone " for " ${NTNX_VG[0]}
+echo "Current Number of Clones " $numclone " for " ${TARGET_ODB_ENV[0]}
 while(( numclone >= NUM_KEEP )); do
-  rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy-${NTNX_VG[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
+  rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/  /\:/'"  2> /dev/null`
   echo "Removing VG " ${rmvg}
   echo  ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
   ssh ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
-  numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy-${NTNX_VG[0]} | wc -l`
+  numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | wc -l`
 done
 
-#------------------------------------------------------------------------------
-
-## TEMP FOR BH TST
-# Create a tmp volumegroup. This will be used to hold the vmdisk clones below
-# since the BH TST environment was configured with vdisks and not VGs
-ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.create ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}"
 
 #------------------------------------------------------------------------------
 
@@ -173,16 +176,19 @@ echo ""
 #------------------------------------------------------------------------------
 
 ## Step 3: Clone the VG
-# TEMPORARY COMMENTING OUT FOR BH TST
-# echo "Creating new clone " ${PREFIX_DATE}-copy-${NTNX_VG[0]}
-# ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy-${NTNX_VG[0]} clone_from_vg=${NTNX_VG[0]}
+# echo "Creating new clone " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}
+# ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]} clone_from_vg=${NTNX_SOURCE_VG[0]}
 
-# TEMP FOR BH TST
-# - We'll clone the vdisk attached to the BH TST environment into a VG, which
+# Special Case: single vDisk (non-VG) cloning
+# - We'll clone the vdisk attached to the environment into a VG, which
 #   allows us to treat the rest of the logic in this script just like we would
-#   if the original setup was with a VG. This configuration will be harmonized
-#   for this environment at a future date, such that TST will match production
-#   which will be exclusively VGs
+#   if the original setup was with a VG.
+# - To do this, create a tmp volumegroup first, then clone the vdisk into that
+#   temp vg. This will be used to hold the vmdisk clones.
+# - Note: this is here for special cases only, try to avoid this if you can
+#   and use VG's everywhere instead, even for single vdisks in TST, POC, etc.
+ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.create \
+  ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}"
 ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.disk_create \
   ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]} \
   clone_from_vmdisk=${VMDISK_UUID[0]}"
@@ -197,8 +203,8 @@ echo ""
 
 ## Step 5: Mount the clone
 # Attach new clone
-echo "Attach " ${PREFIX_DATE}-copy-${NTNX_VG[0]}
-ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy-${NTNX_VG[0]} ${AHV_MOUNT_VM}"
+echo "Attach " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}
+ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]} ${AHV_MOUNT_VM}"
 
 # Clean up LVM metadata
 pvscan --cache
@@ -214,30 +220,31 @@ if(( ret == 1 )); then
   echo "Backup file system ${MP[0]} is ready."
 else
   echo "Backup file system ${MP[0]} did not mount properly"
+  exit
 fi
 
 #------------------------------------------------------------------------------
 
 ## Step 6: Kick off 3rd party out-of-system backup
-echo "Kick off backup for " ${PREFIX_DATE}-copy-${NTNX_VG[0]}
+echo "Kick off backup for " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]]}
 
 # Endpoint URL for login action
-veeamUsername="EMUsername" #Your username, if using domain based account, enter UPN (user@domain.com)
+veeamUsername="EMUsername" # If using domain based account, enter UPN (e.g. user@domain.com)
 veeamPassword="EMPassword"
 veeamAuth=$(echo -ne "$veeamUsername:$veeamPassword" | base64);
 veeamRestServer="EMServer" #IP Address or FQDN of Enterprise Manager server
-veeamRestPort="9398" #Default HTTPS REST API Port
-veeamSessionId=$(curl -X POST "https://$veeamRestServer:$veeamRestPort/api/sessionMngr/?v=latest" -H "Authorization:Basic $veeamAuth" -H "Content-Length: 0" -H "Accept: application/json" -k --silent | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1' | jq --raw-output ".SessionId")
+veeamRestPort="9398"
+veeamSessionId=$(curl -X POST "https://$veeamRestServer:$veeamRestPort/api/sessionMngr/?v=latest" -H "Authorization:Basic $veeamAuth" -H "Content-Length: 0" -H "Accept: application/json" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1' | jq --raw-output ".SessionId")
 veeamXRestSvcSessionId=$(echo -ne "$veeamSessionId" | base64);
 veeamJobId="763797f3-391c-46c8-aa81-83d04f534396"
 
 # Query Job
-veeamEMJobUrl="https://$veeamRestServer:$veeamRestPort/api/jobs/$veeamJobId?format=Entity"
-veeamEMJobDetailUrl=$(curl -X GET "$veeamEMJobUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" --insecure 2>&1 -k --silent | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
+veeamEMJobUrl="https://$veeamRestServer:$veeamRestPort/api/nas/jobs/$veeamJobId?format=Entity"
+veeamEMJobDetailUrl=$(curl -X GET "$veeamEMJobUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
 
 # Start Job
-veeamEMStartUrl="https://$veeamRestServer:$veeamRestPort/api/jobs/$veeamJobId?action=start"
-veeamEMResultUrl=$(curl -X POST "$veeamEMStartUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" --insecure 2>&1 -k --silent | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
+veeamEMStartUrl="https://$veeamRestServer:$veeamRestPort/api/nas/jobs/$veeamJobId/start"
+veeamEMResultUrl=$(curl -X POST "$veeamEMStartUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
 
 # Capture & Display Results
 veeamJobName=$(echo "$veeamEMJobDetailUrl" | jq --raw-output ".Name")

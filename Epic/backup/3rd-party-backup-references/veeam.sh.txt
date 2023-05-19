@@ -1,0 +1,43 @@
+#!/usr/bin/bash
+
+set -ex
+
+#------------------------------------------------------------------------------
+
+# Copyright (c) 2023 Nutanix Inc. All rights reserved.
+#
+# Maintainer:   Jon Kohler (jon@nutanix.com)
+# Contributors: Scott Fadden
+#               Charles Sharp
+
+#------------------------------------------------------------------------------
+
+## About
+# This is a sample script for kicking off a Veeam backup job, using Veeam EM's
+# REST API. The intended usage would be at the very end of the "example" ODB
+# backup script, such that after the clones are successfully mounted, a job
+# is queued up to run a file system backup from Veeam.
+
+# Endpoint URL for login action
+veeamUsername="EMUsername" # If using domain based account, enter UPN (e.g. user@domain.com)
+veeamPassword="EMPassword"
+veeamAuth=$(echo -ne "$veeamUsername:$veeamPassword" | base64);
+veeamRestServer="EMServer" #IP Address or FQDN of Enterprise Manager server
+veeamRestPort="9398"
+veeamSessionId=$(curl -X POST "https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_sessionMngr_-3Fv-3Dlatest&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=36GxUaHu0153-XrTQfWo-fKGCG4IajotneHn2KZfC9g&e= " -H "Authorization:Basic $veeamAuth" -H "Content-Length: 0" -H "Accept: application/json" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1' | jq --raw-output ".SessionId")
+veeamXRestSvcSessionId=$(echo -ne "$veeamSessionId" | base64);
+veeamJobId="763797f3-391c-46c8-aa81-83d04f534396"
+
+# Query Job
+veeamEMJobUrl="https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_nas_jobs_-24veeamJobId-3Fformat-3DEntity&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=71SvQQJ0lNYM1bQbPlxmFTG3IOFjNMrbPs97ztlpURg&e= "
+veeamEMJobDetailUrl=$(curl -X GET "$veeamEMJobUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
+
+# Start Job
+veeamEMStartUrl="https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_nas_jobs_-24veeamJobId_start&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=_QapUxC6KxbHS1teM8YypJRX8ZURLqdgW6Tgop3ViYo&e= "
+veeamEMResultUrl=$(curl -X POST "$veeamEMStartUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
+
+# Capture & Display Results
+veeamJobName=$(echo "$veeamEMJobDetailUrl" | jq --raw-output ".Name")
+veeamTaskId=$(echo "$veeamEMResultUrl" | jq --raw-output ".TaskId")
+veeamState=$(echo "$veeamEMResultUrl" | jq --raw-output ".State")
+veeamOperation=$(echo "$veeamEMResultUrl" | jq --raw-output ".Operation")

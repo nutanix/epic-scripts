@@ -83,7 +83,7 @@ SUP_LVM_LV[0]="sup01lv"
 #   different than how it is mounted within the ODB instance itself, and would
 #   be the directory where you point the backup software to stream the data
 #   from.
-MP[0]="/epic/sup01/"
+MP[0]="/epic/sup01"
 
 # Number of clones to keep
 # - This is useful to keep a couple of the recent clones on the system, such
@@ -153,7 +153,7 @@ echo "$(date) === Kill Process ==="
 #fuser -km /epic/sup01
 ###--->Another /usr/sbin/fuser -u -k -9 -m ${MP[0]}
 ###--Best OPTION
-/usr/sbin/fuser -u -k -9 -m /dev/supvg/sup01lv ||true
+sudo /usr/sbin/fuser -u -k -9 -m /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ||true
 ErrCheck
 
 # Unmount cloned file system
@@ -162,17 +162,17 @@ ErrCheck
 #   the mount was previously detached separately, this would fail as the script
 #   as we have set -ex configured.
 echo "$(date) === umount file User Process ==="
-/usr/bin/umount ${MP[0]} || true
+sudo /usr/bin/umount ${MP[0]} || true
 ErrCheck
 
 # Deactivate VG
 echo "$(date) === Deactivate the VG ==="
-/usr/sbin/vgchange -a n ${SUP_LVM_VG[0]} || true
+sudo /usr/sbin/vgchange -a n ${SUP_LVM_VG[0]} || true
 ErrCheck
 
 # Export VG
 echo "$(date) === Export the VG ==="
-/usr/sbin/vgexport ${SUP_LVM_VG[0]} || true
+sudo /usr/sbin/vgexport ${SUP_LVM_VG[0]} || true
 ErrCheck
 
 # Detach existing clones from VM
@@ -233,22 +233,34 @@ ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy4sup-${TAR
 
 # Clean up LVM metadata
 echo "$(date) === pvscan ==="
-/usr/sbin/pvscan --cache -v
+sudo /usr/sbin/pvscan --cache -v
 ErrCheck "Failed to pvscan"
 
 echo "$(date) === Rename VG ==="
-/usr/sbin/vgrename ${PRD_LVM_VG[0]} ${SUP_LVM_VG[0]}
+sudo /usr/sbin/vgrename ${PRD_LVM_VG[0]} ${SUP_LVM_VG[0]}
 
 echo "$(date) === Rename LV ==="
-/usr/sbin/lvrename ${SUP_LVM_VG[0]} ${PRD_LVM_LV[0]} ${SUP_LVM_LV[0]}
+sudo /usr/sbin/lvrename ${SUP_LVM_VG[0]} ${PRD_LVM_LV[0]} ${SUP_LVM_LV[0]}
 
 echo "$(date) === Activate VG ==="
-/usr/sbin/vgchange -a y ${SUP_LVM_VG[0]}
+sudo /usr/sbin/vgchange -a y ${SUP_LVM_VG[0]}
 ErrCheck "Failed to Activate VG"
 
 echo "$(date) === Mount Filesystem ==="
-mount /dev/mapper/supvg-sup01lv ${MP[0]}
-ErrCheck "Failed to mount the clone"
+sudo /bin/mount /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ${MP[0]} -v || true
+df -h
+ret=`/usr/bin/df | grep "${MP[0]}" | wc -l`
+if(( ret == 1 )); then
+  echo "Backup file system ${MP[0]} is ready."
+else
+  echo "Backup file system ${MP[0]} did not mount properly, waiting and trying again"
+  sleep 30
+  sudo /bin/mount /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ${MP[0]} -v || true
+  df -h
+  ret=`/usr/bin/df | grep "${MP[0]}" | wc -l`
+  ErrCheck "Failed to mount the clone"
+fi
 
+# Delete locks, which is required to start database on different system
 echo "Delete lock (*.lck) files"
-find ${MP[0]} -name iris.lck -type f -exec rm {} \;
+sudo /bin/find ${MP[0]} -name iris.lck -type f -exec rm -v {} \;

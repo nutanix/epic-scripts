@@ -27,7 +27,8 @@ set -ex
 #
 # The script is designed to handle a single Epic environment at a time, e.g.
 # PRD -> SUP; however, you can have multiple instantiations of this same script
-# to manage the various Epic environments (e.g. SUP -> REL, etc).
+# to manage the various Epic environments (e.g. SUP -> REL, etc) by changing
+# just a few variables, such as REFRESH_ENV.
 
 ## Environment Configuration Variables
 # Configure these parameters to match the target environment. These are one time
@@ -66,24 +67,32 @@ CVM_IP="1.2.3.5"
 #   a Linux LVM2 volume group.
 TARGET_NTNX_VG[0]="prd-odb-data-nutanix-vg-name-here"
 
-# Linux LVM Volume Group name
-# - This is the name as listed in Linux "vgs" output.
-# - For sup refreshes, we will be cloning the prd vg and renaming it, such
-#   that we do not have conflicts, so we will need the logical name of each
-#   group here.
-PRD_LVM_VG[0]="prdvg"
-SUP_LVM_VG[0]="supvg"
+# Environment Refresh Variables
+# - Note: this will cascade across script and should be the only "hard coded"
+#   location for the environment name to prevent conflicts.
+REFRESH_ENV="sup"
 
 # Linux LVM Volume Group name
+# - This is the name as listed in Linux "vgs" output.
+# - For refreshes, we will be cloning the prd vg and renaming it, such
+#   that we do not have conflicts, so we will need the logical name of
+#   each group here.
+# - Example: supvg
+PRD_LVM_VG[0]="prdvg"
+REFRESH_LVM_VG[0]="${REFRESH_ENV}vg"
+
+# Linux LVM Volume Group name
+# - Example: sup01lv
 PRD_LVM_LV[0]="prd01lv"
-SUP_LVM_LV[0]="sup01lv"
+REFRESH_LVM_LV[0]="${REFRESH_ENV}01lv"
 
 # Mount point for volume group
 # - This is the directory that the Linux LVM2 will be mounted on. This can be
 #   different than how it is mounted within the ODB instance itself, and would
 #   be the directory where you point the backup software to stream the data
 #   from.
-MP[0]="/epic/sup01"
+# - Example: /epic/sup01
+MP[0]="/epic/${REFRESH_ENV}01"
 
 # Number of clones to keep
 # - This is useful to keep a couple of the recent clones on the system, such
@@ -144,16 +153,12 @@ echo "STEP 1: Cleanup environment"
 # - Clone order is based on EPOCH timestamp name prefix
 
 #######################################
-#Debug - to see what process is using this directory
-#fuser -m ${MP[0]}
+# NOTE: To Debug what process is using this directory
+# fuser -m ${MP[0]}
 #######################################
-#Kill process
-echo "$(date) === Kill Process ==="
-#fuser -km ${MP[0]}
-#fuser -km /epic/sup01
-###--->Another /usr/sbin/fuser -u -k -9 -m ${MP[0]}
-###--Best OPTION
-sudo /usr/sbin/fuser -u -k -9 -m /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ||true
+# Kill outstanding processes
+echo "$(date) === Kill Outstanding Processes ==="
+sudo /usr/sbin/fuser -u -k -9 -m /dev/mapper/${REFRESH_LVM_VG[0]}-${REFRESH_LVM_LV[0]} ||true
 ErrCheck
 
 # Unmount cloned file system
@@ -167,17 +172,17 @@ ErrCheck
 
 # Deactivate VG
 echo "$(date) === Deactivate the VG ==="
-sudo /usr/sbin/vgchange -a n ${SUP_LVM_VG[0]} || true
+sudo /usr/sbin/vgchange -a n ${REFRESH_LVM_VG[0]} || true
 ErrCheck
 
 # Export VG
 echo "$(date) === Export the VG ==="
-sudo /usr/sbin/vgexport ${SUP_LVM_VG[0]} || true
+sudo /usr/sbin/vgexport ${REFRESH_LVM_VG[0]} || true
 ErrCheck
 
 # Detach existing clones from VM
 echo "Detach previous clone(s), if already attached"
-for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy4sup-${TARGET_NTNX_VG[0]}' | awk '{ print $1 }'" 2> /dev/null`
+for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]}' | awk '{ print $1 }'" 2> /dev/null`
 do
   cnt=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
   echo "Count for " $i " is " $cnt
@@ -187,16 +192,16 @@ do
   fi
 done
 
-numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy4sup-${TARGET_NTNX_VG[0]} | wc -l" 2> /dev/null`
+numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]} | wc -l" 2> /dev/null`
 
 # Delete expired clones
 echo "Current Number of Clones " $numclone " for " ${TARGET_NTNX_VG[0]}
 while(( numclone > NUM_KEEP )); do
-  rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy4sup-${TARGET_NTNX_VG[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/\s.*$//'"  2> /dev/null`
+  rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/sed 's/\s.*$//'"  2> /dev/null`
   echo "Removing VG " ${rmvg}
   echo  ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
   ssh ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
-  numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy4sup-${TARGET_NTNX_VG[0]} | wc -l`
+  numclone=`ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.list | grep [0-9].*-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]} | wc -l`
 done
 
 ErrCheck "Failed to remove old clones"
@@ -211,8 +216,8 @@ echo ""
 #------------------------------------------------------------------------------
 
 echo "STEP 3: Clone the VG"
-echo "Creating new clone " ${PREFIX_DATE}-copy4sup-${TARGET_NTNX_VG[0]}
-ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy4sup-${TARGET_NTNX_VG[0]} clone_from_vg=${TARGET_NTNX_VG[0]}
+echo "Creating new clone " ${PREFIX_DATE}-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]}
+ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]} clone_from_vg=${TARGET_NTNX_VG[0]}
 
 ErrCheck "Failed to clone the VG"
 
@@ -226,28 +231,45 @@ ErrCheck "Failed to thaw target ODB"
 
 #------------------------------------------------------------------------------
 
+# Mount cloned file system
+# - Attach clone that was just taken to this VM
+# - Update LVM metadata
+# - Take care of duplicate PV/VG UUIDs
+# - Take care of duplicate XFS filesystem UUIDs
 echo "STEP 5: Mount the clone"
+
 # Attach new clone
-echo "Attach " ${PREFIX_DATE}-copy4sup-${TARGET_NTNX_VG[0]}
-ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy4sup-${TARGET_NTNX_VG[0]} ${myvmname}"
+echo "Attach " ${PREFIX_DATE}-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]}
+ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy4${REFRESH_ENV}-${TARGET_NTNX_VG[0]} ${myvmname}"
 
 # Clean up LVM metadata
 echo "$(date) === pvscan ==="
 sudo /usr/sbin/pvscan --cache -v
 ErrCheck "Failed to pvscan"
 
-echo "$(date) === Rename VG ==="
-sudo /usr/sbin/vgrename ${PRD_LVM_VG[0]} ${SUP_LVM_VG[0]}
+# Find PV's of refreshed volumes
+pvs=$(sudo /usr/sbin/vgs -o pv_name --noheadings ${PRD_LVM_VG[0]})
+
+# Deactivate refreshed volumes temporarily, so that we can import them properly
+sudo /usr/sbin/vgchange -a n ${PRD_LVM_VG[0]}
+
+echo "$(date) === Importing and Renaming VG ==="
+sudo /usr/sbin/vgimportclone -v -n ${REFRESH_LVM_VG[0]} $pvs
 
 echo "$(date) === Rename LV ==="
-sudo /usr/sbin/lvrename ${SUP_LVM_VG[0]} ${PRD_LVM_LV[0]} ${SUP_LVM_LV[0]}
+sudo /usr/sbin/lvrename ${REFRESH_LVM_VG[0]} ${PRD_LVM_LV[0]} ${REFRESH_LVM_LV[0]}
 
 echo "$(date) === Activate VG ==="
-sudo /usr/sbin/vgchange -a y ${SUP_LVM_VG[0]}
+sudo /usr/sbin/vgchange -a y ${REFRESH_LVM_VG[0]}
 ErrCheck "Failed to Activate VG"
 
+# Mount the file system with nouuid so that any metadata changes can be replayed,
+# then change the UUID and remount it
 echo "$(date) === Mount Filesystem ==="
-sudo /bin/mount /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ${MP[0]} -v || true
+sudo /bin/mount -o rw,nouuid /dev/mapper/${REFRESH_LVM_VG[0]}-${REFRESH_LVM_LV[0]} ${MP[0]} -v
+sudo /bin/umount ${MP[0]} -v
+sudo /usr/sbin/xfs_admin -U generate /dev/mapper/${REFRESH_LVM_VG[0]}-${REFRESH_LVM_LV[0]}
+sudo /bin/mount /dev/mapper/${REFRESH_LVM_VG[0]}-${REFRESH_LVM_LV[0]} ${MP[0]} -v || true
 df -h
 ret=`/usr/bin/df | grep "${MP[0]}" | wc -l`
 if(( ret == 1 )); then
@@ -255,7 +277,7 @@ if(( ret == 1 )); then
 else
   echo "Backup file system ${MP[0]} did not mount properly, waiting and trying again"
   sleep 30
-  sudo /bin/mount /dev/mapper/${SUP_LVM_VG[0]}-${SUP_LVM_LV[0]} ${MP[0]} -v || true
+  sudo /bin/mount /dev/mapper/${REFRESH_LVM_VG[0]}-${REFRESH_LVM_LV[0]} ${MP[0]} -v || true
   df -h
   ret=`/usr/bin/df | grep "${MP[0]}" | wc -l`
   ErrCheck "Failed to mount the clone"

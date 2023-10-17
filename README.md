@@ -2,7 +2,7 @@
 
 This repository contains reference scripts to be used for Epic EHR on Nutanix deployments.
 
-All scripts are provided generalized examples and must be modified to your particular deployment.
+All scripts are generalized examples and must be modified to your particular deployment.
 
 Please reach out to Epic@nutanix.com with any questions and we'd be happy to help.
 

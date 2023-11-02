@@ -24,16 +24,16 @@ veeamPassword="EMPassword"
 veeamAuth=$(echo -ne "$veeamUsername:$veeamPassword" | base64);
 veeamRestServer="EMServer" #IP Address or FQDN of Enterprise Manager server
 veeamRestPort="9398"
-veeamSessionId=$(curl -X POST "https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_sessionMngr_-3Fv-3Dlatest&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=36GxUaHu0153-XrTQfWo-fKGCG4IajotneHn2KZfC9g&e= " -H "Authorization:Basic $veeamAuth" -H "Content-Length: 0" -H "Accept: application/json" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1' | jq --raw-output ".SessionId")
+veeamSessionId=$(curl -X POST "https://$veeamRestServer:$veeamRestPort/api/sessionMngr/?v=latest" -H "Authorization:Basic $veeamAuth" -H "Content-Length: 0" -H "Accept: application/json" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1' | jq --raw-output ".SessionId")
 veeamXRestSvcSessionId=$(echo -ne "$veeamSessionId" | base64);
 veeamJobId="763797f3-391c-46c8-aa81-83d04f534396"
 
 # Query Job
-veeamEMJobUrl="https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_nas_jobs_-24veeamJobId-3Fformat-3DEntity&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=71SvQQJ0lNYM1bQbPlxmFTG3IOFjNMrbPs97ztlpURg&e= "
+veeamEMJobUrl="https://$veeamRestServer:$veeamRestPort/api/nas/jobs/$veeamJobId?format=Entity"
 veeamEMJobDetailUrl=$(curl -X GET "$veeamEMJobUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
 
 # Start Job
-veeamEMStartUrl="https://urldefense.proofpoint.com/v2/url?u=https-3A__-24veeamRestServer-3A-24veeamRestPort_api_nas_jobs_-24veeamJobId_start&d=DwIGaQ&c=s883GpUCOChKOHiocYtGcg&r=NGPRGGo37mQiSXgHKm5rCQ&m=IjcOYjJJ1oHyM4upMR7wUN9ZzfI77-WNoaPWHeY0bro4rutwwViyJmBFTFnsmqV-&s=_QapUxC6KxbHS1teM8YypJRX8ZURLqdgW6Tgop3ViYo&e= "
+veeamEMStartUrl="https://$veeamRestServer:$veeamRestPort/api/nas/jobs/$veeamJobId/start"
 veeamEMResultUrl=$(curl -X POST "$veeamEMStartUrl" -H "Accept:application/json" -H "X-RestSvcSessionId: $veeamXRestSvcSessionId" -H "Cookie: X-RestSvcSessionId=$veeamXRestSvcSessionId" -H "Content-Length: 0" -k -v | awk 'NR==1{sub(/^\xef\xbb\xbf/,"")}1')
 
 # Capture & Display Results

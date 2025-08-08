@@ -1,0 +1,80 @@
+---
+# tasks file for import_epic_linux_vg
+- name: Run a PVscan
+  ansible.builtin.command: pvscan --cache -v
+  register: pvs_output
+
+- name: Get PVs of the Refresh Volumes
+  ansible.builtin.command: "vgs -o pv_name --noheadings {{volume_group.source_host_vg_name }}"
+  register: pvs_found
+
+- name: Deactivate the VG so import runs clean
+  ansible.builtin.command: "vgchange -a n {{volume_group.source_host_vg_name }}"
+
+- name: Import and Rename VG
+  ansible.builtin.command: "vgimportclone -v -n {{volume_group.target_host_vg_name }} {{ pvs_found.stdout_lines | join(' ') }}"
+
+- name: Rename LVs 
+  ansible.builtin.command: "lvrename {{volume_group.target_host_vg_name }} {{ lv_item.source_lv }} {{ lv_item.target_lv }}"
+  loop: "{{ volume_group.lvs }}"
+  loop_control:
+     loop_var: lv_item
+
+- name: Activate the VG
+  ansible.builtin.command: "vgchange -a y {{volume_group.target_host_vg_name }}"
+
+- name: Mount XFS filesystem with no UUID
+  ansible.posix.mount:
+    path: "{{ lv_item.target_mp }}"
+    src: "/dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
+    opts: "rw,nouuid"
+    fstype: xfs
+    state: mounted
+  loop: "{{volume_group.lvs }}"
+  loop_control:
+    loop_var: lv_item
+   
+- name: Unmount so we can change the UUID
+  ansible.posix.mount:
+    path: "{{ lv_item.target_mp }}"
+    src: "/dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
+    state: unmounted
+  loop: "{{volume_group.lvs }}"
+  loop_control:
+    loop_var: lv_item
+
+- name: Generate new UUID for remount
+  ansible.builtin.command: "xfs_admin -U generate /dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
+  loop: "{{volume_group.lvs }}"
+  loop_control:
+    loop_var: lv_item
+  
+- name: Remount the filesystem
+  ansible.posix.mount:
+    path: "{{ lv_item.target_mp }}"
+    src: "/dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
+    fstype: xfs
+    state: mounted
+  loop: "{{volume_group.lvs }}"
+  loop_control:
+    loop_var: lv_item
+
+- name: Locate any lingering iris lock files
+  ansible.builtin.find:
+    paths: "{{ lv_item.target_mp }}"
+    patterns: 'iris.lck'
+    file_type: file
+    recurse: yes
+  register: found_iris_lck_files
+  loop: "{{volume_group.lvs }}"
+  loop_control:
+    loop_var: lv_item
+
+- name: Delete iris lock files
+  ansible.builtin.file:
+    path: "{{ lck_item.path }}"
+    state: absent
+  loop:  "{{ found_iris_lck_files.results | map(attribute='files') | flatten }}"
+  loop_control:
+    loop_var: lck_item
+  when: lck_item.path is defined

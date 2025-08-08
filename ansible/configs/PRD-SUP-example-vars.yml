@@ -1,0 +1,74 @@
+# ------------------------------
+# Environment to Refresh  
+# This will be be a part of the name for VGs and RPs
+# ------------------------------
+source_env: "PRD"
+target_env: "SUP"
+
+# ------------------------------
+# Retention for Recovery Points for extra recovery capabilities
+# ------------------------------
+rp_retention_days: 7
+
+# ------------------------------
+# Maximum age for the Recovery Point we use as a source for our VGs
+# ------------------------------
+#max_age_minutes: 120
+max_age_minutes: 1
+
+# ------------------------------
+# Commands to Freeze and Thaw the database
+# ------------------------------
+iris_freeze_cmd: "/epic/{{ source_env }}/bin/instfreeze"
+iris_thaw_cmd: "/epic/{{ source_env }}/bin/instthaw"
+
+# ------------------------------
+# Volume Group Definitions and FS Mapping
+#
+#  - ntnx_name: Name of Volume Group in Prism Central
+#    source_host_vg_name: Name of Volume Group in Source Host
+#    target_host_vg_name: New Name of Volume Group on Target Host
+#    lvs:
+#        - source_lv: Name of LV in Source Host
+#          target_lv: New Name of LV on Target Host
+#          target_mp: Mount Point of LV on Target Host
+# ------------------------------
+vgs:
+  - ntnx_name: "EPICVG"
+    source_host_vg_name: "EpicVG"
+    target_host_vg_name: "EpicSupVG"
+    lvs:
+        - source_lv: 'test_vol1'
+          target_lv: '{{ target_env }}_vol1'
+          target_mp: '/{{target_env}}_v1'
+        - source_lv: 'test_vol2'
+          target_lv: '{{ target_env }}_vol2'
+          target_mp: '/{{target_env}}_v2'
+        - source_lv: 'test_vol3'
+          target_lv: '{{ target_env }}_vol3'
+          target_mp: '/{{target_env}}_v3'
+
+  - ntnx_name: "EPICvg2"
+    source_host_vg_name: "EpicVG2"
+    target_host_vg_name: "EpicSupVG2"
+    lvs:
+        - source_lv: 'test_vol4'
+          target_lv: '{{ target_env }}_vol4'
+          target_mp: '/{{target_env}}_v4'
+        - source_lv: 'test_vol5'
+          target_lv: '{{ target_env }}_vol5'
+          target_mp: '/{{target_env}}_v5'
+
+# ------------------------------
+# Nutanix Cluster Info
+# ------------------------------
+cluster_name: "NTNXP1"
+prism_host: "192.168.2.200"
+validate_certs: false
+
+# ------------------------------
+# Nutanix Cluster Credentials
+#  THESE SHOULD BE IN A VAULT
+# ------------------------------
+prism_username: "admin"
+prism_password: "ahv4EVA!!"

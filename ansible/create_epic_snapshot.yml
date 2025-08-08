@@ -1,0 +1,24 @@
+- name: Freeze ODB
+  hosts: source_host
+  become: true
+  roles: 
+    - freeze_odb
+
+- name: Create Volume Group Recovery Points
+  hosts: localhost
+  gather_facts: true
+  module_defaults:
+    group/nutanix.ncp.ntnx:
+      nutanix_host: "{{ prism_host }}"
+      nutanix_username: "{{ prism_username }}"
+      nutanix_password: "{{ prism_password }}"
+      validate_certs: "{{ validate_certs }}"
+  roles:
+    - create_epic_rp
+
+
+- name: Thaw ODB
+  hosts: source_host
+  become: true
+  roles:
+    - thaw_odb

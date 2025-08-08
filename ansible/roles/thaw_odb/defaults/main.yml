@@ -1,0 +1,3 @@
+---
+# defaults file for thaw_odb
+iris_thaw_cmd: /epic/bin/instthaw

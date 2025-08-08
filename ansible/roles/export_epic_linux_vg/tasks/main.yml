@@ -1,0 +1,60 @@
+---
+# tasks file for export_epic_vgs
+- name: Set fact for our lv target paths
+  ansible.builtin.set_fact:
+    target_paths: []
+
+- name: Append each lv target path to our fact
+  ansible.builtin.set_fact:
+    target_paths: "{{ target_paths + [item.0.target_host_vg_name ~ '/' ~ item.1.target_lv] }}"
+  with_subelements:
+    - "{{ vgs }}"
+    - lvs
+
+- name: Kill any remaining processes on the target filesystems
+  ansible.builtin.command: "fuser -u -k -9 -m /dev/{{ item }}"
+  loop: "{{ target_paths }}"  
+  loop_control:
+    loop_var: item
+  register: fuser_out
+  failed_when: fuser_out.rc > 1
+
+- name: Unmount the filesystems on the target system
+  ansible.posix.mount:
+    path: "{{ item }}"
+    state: unmounted
+  loop: "{{ vgs | map(attribute='lvs') | list | flatten | map(attribute='target_mp') | list }}"
+  loop_control:
+    loop_var: item
+
+- name: Red is OK
+  debug:
+    msg:  "Red in the next step is OK, it means the VG may already be deactivated/unmounted, we will check in the next step if it's a real failure and exit accordingly"
+
+- name: Deactivate the VGs on the target system
+  ansible.builtin.command: "vgchange -a n {{ item.target_host_vg_name }}"
+  loop: "{{ vgs }}"
+  loop_control:
+    loop_var: item
+  register: vgchange_out
+  ignore_errors: yes
+
+- name: Fail if any VG deactivate had an unexpected error
+  fail:
+    msg: "vgchange failed with RC={{ item.rc }} for {{ item.item.target_host_vg_name }}"
+  when: item.rc != 0 and item.rc != 5
+  loop: "{{ vgchange_out.results }}"
+
+- name: Export the Volume Groups
+  ansible.builtin.command: "vgexport {{ item.target_host_vg_name }}"
+  loop: "{{ vgs }}"
+  loop_control:
+    loop_var: item
+  register: vgexport_out
+  ignore_errors: yes
+  
+- name: Fail if any VG export had an unexpected error
+  fail:
+    msg: "vgexport failed with RC={{ item.rc }} for {{ item.item.target_host_vg_name }}"
+  when: item.rc != 0 and item.rc != 5
+  loop: "{{ vgchange_out.results }}"

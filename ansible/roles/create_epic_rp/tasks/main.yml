@@ -1,0 +1,11 @@
+- name:  Creating a Recovery Point for each Volume Group
+  ansible.builtin.include_tasks: rp_tasks.yml
+  vars:
+    source_env: "{{ source_env }}"
+    target_env: "{{ target_env }}"
+    rp_retention_days: "{{ rp_retention_days }}"
+    volume_group: "{{ item }}"
+  loop: "{{ vgs }}"
+  loop_control:
+    label: "{{ item.ntnx_name }}"
+    loop_var: item

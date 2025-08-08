@@ -1,0 +1,69 @@
+---
+# tasks file for clone_epic_ntnx_vg
+- name: Getting external ID of Nutanix cluster
+  nutanix.ncp.ntnx_clusters_info_v2:
+    filter: "name eq '{{ cluster_name }}'"
+  register: peid
+
+- name: Fetch Source Volume Group info
+  nutanix.ncp.ntnx_volume_groups_info_v2:
+     filter: "name eq '{{ volume_group.ntnx_name }}'"
+  register: vginfo
+
+- name: Setting Volume Group Fact
+  ansible.builtin.set_fact:
+    source_vg_ext_id: "{{ vginfo.response[0].ext_id }}"
+
+- name: Get Most Recent Recovery Point that matches refresh pattern of REFRESH-{{ source_env }}-{{ target_env }}-FR
+  nutanix.ncp.ntnx_recovery_points_info_v2:
+    filter: "volumeGroupRecoveryPoints/any(a:a/volumeGroupExtId eq '{{ source_vg_ext_id }}') and contains(name,'REFRESH-{{ source_env }}-{{ target_env }}-FR')"
+    orderby: "creationTime desc"
+    limit: 1
+  register: latest_vgrp
+
+- name: Parse timestamps
+  set_fact:
+    now_time: "{{ now(utc=true) | string }}"
+    created_time: "{{ latest_vgrp.response[0].creation_time.split('.')[0] | string }}"
+
+- name: Convert strings to datetime
+  set_fact:
+    now_dt: "{{ ((now_time | to_datetime('%Y-%m-%d %H:%M:%S.%f')) - (created_time | to_datetime('%Y-%m-%dT%H:%M:%S'))).total_seconds() }}"
+
+- name: Convert time difference minutes
+  set_fact:
+    diff_minutes: "{{ (now_dt | int) // 60 }}"
+
+- name: Show time difference
+  debug:
+     msg: 
+       - "Found Recovery Point: {{ latest_vgrp.response[0].name }} was created {{ diff_minutes | int |  round(2) }} minutes ago."
+
+- name: Ending playbook if the latest Recovery Point is too old
+  ansible.builtin.fail:
+     msg: "Failing playbook because the most recent refresh Recovery Point is older than {{ max_age_minutes }} minutes"
+  when: (diff_minutes | int) > max_age_minutes
+
+- name: Restore the Recovery Point, creating a clone
+  nutanix.ncp.ntnx_recovery_point_restore_v2:
+    ext_id: '{{ latest_vgrp.response[0].ext_id }}'
+    cluster_ext_id: '{{ peid.response[0].ext_id }}'
+    volume_group_recovery_point_restore_overrides:
+      - volume_group_override_spec:
+          name: "{{ source_env }}-{{ target_env }}-REFRESH-{{ volume_group.ntnx_name }}-{{ now_time }}"
+        volume_group_recovery_point_ext_id: '{{ latest_vgrp.response[0].volume_group_recovery_points[0].ext_id }}'
+  register: new_vg_info
+
+- name: Set Restored VG Fact
+  ansible.builtin.set_fact:
+    target_vg_ext_id: '{{ new_vg_info.response.completion_details[0].value }}'
+
+- name: Attach VG to target Virtual Machine
+  nutanix.ncp.ntnx_volume_groups_vms_v2:
+    state: present
+    ext_id: '{{ target_vm_uuid }}'
+    volume_group_ext_id: '{{ target_vg_ext_id }}'
+
+- name: Provide output for attached Volume Group
+  ansible.builtin.debug:
+    msg: "Attached new Volume Group: {{ source_env }}-{{ target_env }}-REFRESH-{{ volume_group.ntnx_name }}-{{ now_time }}" 

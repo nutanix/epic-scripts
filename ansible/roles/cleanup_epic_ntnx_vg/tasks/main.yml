@@ -1,0 +1,42 @@
+---
+# tasks file for cleanup_epic_ntnx_vg
+- name: Getting external ID of Nutanix cluster
+  nutanix.ncp.ntnx_clusters_info_v2:
+    filter: "name eq '{{ cluster_name }}'"
+  register: peid
+
+- name: Getting Virtual Machines in the cluster
+  nutanix.ncp.ntnx_vms_info_v2:
+    filter: "cluster/extId eq '{{ peid.response[0].ext_id }}'"
+  register: vms
+
+- name: Getting all Volume Groups that are attached to VMs
+  ansible.builtin.set_fact:
+    attached_vg_extids: >-
+      {{
+        vms.response
+        | json_query("[].disks[?backing_info.volume_group_ext_id].backing_info.volume_group_ext_id")
+        | flatten
+      }} 
+
+- name: Locate Refresh Volumegroups for environment
+  nutanix.ncp.ntnx_volume_groups_info_v2:
+    filter: "contains(name, '{{ source_env }}-{{ target_env }}-REFRESH')"
+  register: sup_vgs
+
+- name: Remove old Refresh VGs that are not attached to VMs
+  nutanix.ncp.ntnx_volume_groups_v2:
+    ext_id: "{{ item.ext_id }}"
+    state: absent
+  loop: "{{ sup_vgs.response }}"
+  loop_control: 
+      loop_var: item
+  when: item.ext_id not in attached_vg_extids
+
+- name: Provide output for removed VGs
+  ansible.builtin.debug:
+    msg: "Removed VG: {{ item.name }} with ext_id: {{ item.ext_id }}"
+  loop: "{{ sup_vgs.response }}"
+  loop_control:
+    loop_var: item
+  when: item.ext_id not in attached_vg_extids

@@ -1,0 +1,26 @@
+---
+# tasks file for disconnect_epic_ntnx_vg
+- name: Fetch Target VM Info
+  nutanix.ncp.ntnx_vms_info_v2:
+    ext_id: "{{ target_vm_uuid }}"
+  register: target_vm_info
+
+- name: Set Target VM Info fact
+  ansible.builtin.set_fact:
+    target_vm_ext_id: '{{ target_vm_info.response.ext_id }}'
+    target_vm_attached_disks: '{{ target_vm_info.response.disks }}'
+
+- name: Determining VGs to remove
+  nutanix.ncp.ntnx_volume_groups_info_v2:
+      ext_id: "{{ item.backing_info.volume_group_ext_id }}"
+  with_items: "{{ target_vm_attached_disks }}"
+  when: item.backing_info.volume_group_ext_id is defined
+  register: vm_attached_vgs
+
+- name: Remove old VG mounts from Target VM
+  nutanix.ncp.ntnx_volume_groups_vms_v2:
+    state: absent
+    ext_id: '{{ target_vm_ext_id }}'
+    volume_group_ext_id: '{{ item.response.ext_id }}'
+  with_items: "{{ vm_attached_vgs.results }}"
+  when: item.response is defined and item.response.name is search(source_env ~ '-' ~ target_env)

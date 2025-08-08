@@ -1,0 +1,42 @@
+- name: Exporting Linux Volume Groups from Target Host
+  hosts: target_host
+  become: true
+  gather_facts: yes 
+  roles:
+    - export_epic_linux_vg
+
+- name: Remove the previous Epic Nutanix Volume Groups and Attach new Clones
+  hosts: localhost
+  gather_facts: true
+
+  module_defaults:
+    group/nutanix.ncp.ntnx:
+      nutanix_host: "{{ prism_host }}"
+      nutanix_username: "{{ prism_username }}"
+      nutanix_password: "{{ prism_password }}"
+      validate_certs: "{{ validate_certs }}"
+  roles:
+    - disconnect_epic_ntnx_vg
+    - clone_epic_ntnx_vg
+  vars:
+    target_vm_uuid: "{{ hostvars[groups['target_host'][0]]['ansible_facts']['product_uuid'] }}"
+
+- name: Import Volume Groups into Target Host
+  hosts: target_host
+  become: true
+  gather_facts: yes 
+  roles:
+    - import_epic_linux_vg
+
+- name: Cleanup Old Epic Refresh Volume Groups 
+  hosts: localhost
+  gather_facts: true
+
+  module_defaults:
+    group/nutanix.ncp.ntnx:
+      nutanix_host: "{{ prism_host }}"
+      nutanix_username: "{{ prism_username }}"
+      nutanix_password: "{{ prism_password }}"
+      validate_certs: "{{ validate_certs }}"
+  roles:
+    - cleanup_epic_ntnx_vg

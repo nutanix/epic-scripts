@@ -19,7 +19,7 @@
     - disconnect_epic_ntnx_vg
     - clone_epic_ntnx_vg
   vars:
-    target_vm_uuid: "{{ hostvars[groups['target_host'][0]]['ansible_facts']['product_uuid'] }}"
+    target_vm_uuid: "{{ hostvars['target_host']['ansible_facts']['product_uuid'] }}"
 
 - name: Import Volume Groups into Target Host
   hosts: target_host

@@ -14,9 +14,9 @@
   ansible.builtin.set_fact:
     source_vg_ext_id: "{{ vginfo.response[0].ext_id }}"
 
-- name: Get Most Recent Recovery Point that matches refresh pattern of REFRESH-{{ source_env }}-{{ target_env }}-FR
+- name: Get Most Recent Recovery Point that matches refresh pattern of REFRESH-{{ source_env }}
   nutanix.ncp.ntnx_recovery_points_info_v2:
-    filter: "volumeGroupRecoveryPoints/any(a:a/volumeGroupExtId eq '{{ source_vg_ext_id }}') and contains(name,'REFRESH-{{ source_env }}-{{ target_env }}-FR')"
+    filter: "volumeGroupRecoveryPoints/any(a:a/volumeGroupExtId eq '{{ source_vg_ext_id }}') and contains(name,'REFRESH-{{ source_env }}')"
     orderby: "creationTime desc"
     limit: 1
   register: latest_vgrp

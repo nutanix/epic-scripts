@@ -1,5 +1,9 @@
 ---
 # tasks file for disconnect_epic_ntnx_vg
+- name: Debug
+  debug:
+    var: hostvars
+
 - name: Fetch Target VM Info
   nutanix.ncp.ntnx_vms_info_v2:
     ext_id: "{{ target_vm_uuid }}"

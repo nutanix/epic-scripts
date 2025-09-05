@@ -62,13 +62,14 @@ vgs:
 # ------------------------------
 # Nutanix Cluster Info
 # ------------------------------
-cluster_name: "NTNXP1"
-prism_host: "192.168.2.200"
+cluster_name: "NTNX_CLUSTER_NAME"
+prism_host: "PRISM_CENTRAL_IP_OR_FQDN"
 validate_certs: false
 
 # ------------------------------
-# Nutanix Cluster Credentials
-#  THESE SHOULD BE IN A VAULT
+# Prism Central Credentials
+# These should be set in a vault or environment variable
 # ------------------------------
-prism_username: "admin"
-prism_password: "ahv4EVA!!"
+prism_username: "{{ lookup('env','PRISM_USERNAME') | default('admin', true) }}"
+prism_password: "{{ lookup('env','PRISM_PASSWORD') }}"
+

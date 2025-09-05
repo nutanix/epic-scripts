@@ -1,6 +1,6 @@
 ---
-# tasks file for freeze_odb
-- name: Freeze ODB
+# tasks file for thaw_odb
+- name: Thaw ODB
   ansible.builtin.command: "{{ iris_thaw_cmd }}"
 
 - name: Successfully thawed ODB

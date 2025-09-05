@@ -25,3 +25,4 @@
     msg:
     - "Recovery Point for VG: '{{ volume_group.ntnx_name }}' created successfully."
     - "Recovery Point expiration in {{ rp_retention_days }} days, will expire at: {{ expiration_date }}"
+  when: rp_info is succeeded

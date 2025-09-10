@@ -19,11 +19,19 @@
   register: fuser_out
   failed_when: fuser_out.rc > 1
 
-- name: Unmount the filesystems on the target system
+- name: Reverse our filesystems so they unmount in the correct order
+  set_fact:
+    unmount_paths: "{{ vgs | map(attribute='lvs') | list | flatten | map(attribute='target_mp') | list | sort | reverse }}"
+
+- name: Debug our unmount paths
+  debug:
+    var: unmount_paths
+
+- name: Unmount the filesystems on the target system, in reverse order
   ansible.posix.mount:
     path: "{{ item }}"
     state: unmounted
-  loop: "{{ vgs | map(attribute='lvs') | list | flatten | map(attribute='target_mp') | list }}"
+  loop: "{{ unmount_paths }}"
   loop_control:
     loop_var: item
 

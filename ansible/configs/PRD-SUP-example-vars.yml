@@ -32,6 +32,11 @@ iris_thaw_cmd: "/epic/{{ source_env }}/bin/instthaw"
 #        - source_lv: Name of LV in Source Host
 #          target_lv: New Name of LV on Target Host
 #          target_mp: Mount Point of LV on Target Host
+#
+#  *** IMPORTANT NOTE:
+#   The VG name must be different on the source and target.  This has no impact on LV or
+#   mount point names, just the VG name itself.
+#
 # ------------------------------
 vgs:
   - ntnx_name: "EPICVG"
@@ -43,7 +48,7 @@ vgs:
           target_mp: '/{{target_env}}_v1'
         - source_lv: 'test_vol2'
           target_lv: '{{ target_env }}_vol2'
-          target_mp: '/{{target_env}}_v2'
+          target_mp: '/{{target_env}}_v1/subdir'
         - source_lv: 'test_vol3'
           target_lv: '{{ target_env }}_vol3'
           target_mp: '/{{target_env}}_v3'
@@ -54,10 +59,17 @@ vgs:
     lvs:
         - source_lv: 'test_vol4'
           target_lv: '{{ target_env }}_vol4'
-          target_mp: '/{{target_env}}_v4'
+          target_mp: '/{{target_env}}_v1/subdir2'
         - source_lv: 'test_vol5'
           target_lv: '{{ target_env }}_vol5'
           target_mp: '/{{target_env}}_v5'
+
+# ------------------------------
+# LVM nolocking option
+# Set to true if you need to use the --nolocking option with LVM commands
+# This can resolve known locking, failure, and timeout issues specifically with RHEL8
+# ------------------------------
+lvm_nolocking_option: false
 
 # ------------------------------
 # Nutanix Cluster Info
@@ -72,4 +84,3 @@ validate_certs: false
 # ------------------------------
 prism_username: "{{ lookup('env','PRISM_USERNAME') | default('admin', true) }}"
 prism_password: "{{ lookup('env','PRISM_PASSWORD') }}"
-

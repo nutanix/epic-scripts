@@ -24,6 +24,12 @@
     filter: "contains(name, '{{ source_env }}-{{ target_env }}-REFRESH')"
   register: sup_vgs
 
+- name: Debug VG Removal Data
+  ansible.builtin.debug:
+    msg: 
+      - "Attached VG ext_ids: {{ attached_vg_extids }}"
+      - "SUP VGs found: {{ sup_vgs.response }}"  
+
 - name: Remove old Refresh VGs that are not attached to VMs
   nutanix.ncp.ntnx_volume_groups_v2:
     ext_id: "{{ item.ext_id }}"
@@ -32,6 +38,7 @@
   loop_control: 
       loop_var: item
   when: item.ext_id not in attached_vg_extids
+  ignore_errors: yes
 
 - name: Provide output for removed VGs
   ansible.builtin.debug:

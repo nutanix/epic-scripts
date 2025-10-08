@@ -4,6 +4,7 @@
     source_env: "{{ source_env }}"
     target_env: "{{ target_env }}"
     rp_retention_days: "{{ rp_retention_days }}"
+    load_balance_target_vg: "{{ load_balance_target_vg }}"
     volume_group: "{{ item }}"
   loop: "{{ vgs }}"
   loop_control:

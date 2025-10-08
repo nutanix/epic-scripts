@@ -58,11 +58,26 @@
   ansible.builtin.set_fact:
     target_vg_ext_id: '{{ new_vg_info.response.completion_details[0].value }}'
 
+- name: Setting Volume Group Load Balancing for the Volume Group to '{{ load_balance_target_vg }}'
+  nutanix.ncp.ntnx_volume_groups_v2:
+    ext_id: '{{ target_vg_ext_id }}'
+    should_load_balance_vm_attachments: '{{ load_balance_target_vg }}'
+    state: present
+
 - name: Attach VG to target Virtual Machine
   nutanix.ncp.ntnx_volume_groups_vms_v2:
     state: present
     ext_id: '{{ target_vm_uuid }}'
     volume_group_ext_id: '{{ target_vg_ext_id }}'
+
+- name: Debug info on attached VG
+  nutanix.ncp.ntnx_volume_groups_info_v2:
+    ext_id: '{{ target_vg_ext_id }}'
+  register: attached_vg_info
+
+- name: Show info on attached VG
+  ansible.builtin.debug:
+    var: attached_vg_info
 
 - name: Provide output for attached Volume Group
   ansible.builtin.debug:

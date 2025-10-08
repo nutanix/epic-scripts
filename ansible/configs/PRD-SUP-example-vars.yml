@@ -65,6 +65,12 @@ vgs:
           target_mp: '/{{target_env}}_v5'
 
 # ------------------------------
+# Determine if the target VG should have load balancing enabled
+# This is generally not needed for non-Prod environments
+# ------------------------------
+load_balance_target_vg: false
+
+# ------------------------------
 # LVM nolocking option
 # Set to true if you need to use the --nolocking option with LVM commands
 # This can resolve known locking, failure, and timeout issues specifically with RHEL8

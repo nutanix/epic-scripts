@@ -4,6 +4,12 @@
   gather_facts: yes 
   roles:
     - export_epic_linux_vg
+  tasks:
+    - name: Store Target Host UUID for later use 
+      ansible.builtin.set_fact:
+        target_host_uuid: "{{ ansible_facts['product_uuid'] }}"
+      delegate_facts: true
+      delegate_to: localhost
 
 - name: Remove the previous Epic Nutanix Volume Groups and Attach new Clones
   hosts: localhost
@@ -19,7 +25,7 @@
     - disconnect_epic_ntnx_vg
     - clone_epic_ntnx_vg
   vars:
-    target_vm_uuid: "{{ hostvars['target_host']['ansible_facts']['product_uuid'] }}"
+    target_vm_uuid: "{{ hostvars['localhost']['target_host_uuid'] }}"
 
 - name: Import Volume Groups into Target Host
   hosts: target_host

@@ -48,7 +48,7 @@
     src: "/dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
     opts: "rw,nouuid"
     fstype: xfs
-    state: mounted
+    state: ephemeral
   loop: "{{volume_group.lvs }}"
   loop_control:
     loop_var: lv_item
@@ -73,7 +73,7 @@
     path: "{{ lv_item.target_mp }}"
     src: "/dev/{{volume_group.target_host_vg_name}}/{{ lv_item.target_lv }}"
     fstype: xfs
-    state: mounted
+    state: ephemeral
   loop: "{{volume_group.lvs }}"
   loop_control:
     loop_var: lv_item

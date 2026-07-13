@@ -63,7 +63,7 @@ All Variables are required and can be passed via --extra-vars=@variable_file.yml
 | `vgs.lvs.source_lv` | The name of the logical volume in Linux on the source virtual machine | none | Yes |
 | `vgs.lvs.target_lv` | The name that the cloned logical volume will be named in Linux on the target virtual machine | none | Yes |
 | `vgs.lvs.target_mp` | The mount point that the cloned logical volume will be mounted to on the target virtual machine | none | Yes |
-| 'load_balance_target_vg' | Set this to true to enable VGLB for the mounted target volume groups |
+| `load_balance_target_vg` | Set this to true to enable VGLB for the mounted target volume groups | false | No |
 | `lvm_locking_option` | This will enable the --nolocking feature for vgimportclone | false | No |
 | `cluster_name` | The name of the Nutanix Cluster the clone will be created on | none | Yes |
 | `prism_host` | The IP address or hostname of Prism Central | none | Yes |
@@ -96,6 +96,11 @@ max_age_minutes: 120
 # ------------------------------
 iris_freeze_cmd: "/epic/{{ source_env }}/bin/instfreeze"
 iris_thaw_cmd: "/epic/{{ source_env }}/bin/instthaw"
+
+# ------------------------------
+# Select if you want to us VGLB on the target 
+# ------------------------------
+load_balance_target_vg: false
 
 # ------------------------------
 # Volume Group Definitions and FS Mapping

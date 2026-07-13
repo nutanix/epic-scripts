@@ -81,6 +81,303 @@ Executing a backup or refresh as configured in the YAML file with verbose debug 
 epic_backup_clone.py -c config.yml -v
 ```
 
+## Sample Output 
+
+Refresh
+
+```console
+2026-07-13 13:21:25 [ OK ] ------------------------------------
+2026-07-13 13:21:25 [ OK ]  Starting REFRESH
+2026-07-13 13:21:25 [ OK ] ------------------------------------
+2026-07-13 13:21:25 [ OK ] Unmounting Filesystems
+2026-07-13 13:21:25 [ OK ] Checking if /backup/vol1 is mounted on 192.168.2.85
+2026-07-13 13:21:25 [ OK ]   /backup/vol1 is mounted
+2026-07-13 13:21:25 [ OK ]   Unmounting /backup/vol1
+2026-07-13 13:21:26 [ OK ] Checking if /backup/vol2 is mounted on 192.168.2.85
+2026-07-13 13:21:26 [ OK ]   /backup/vol2 is mounted
+2026-07-13 13:21:26 [ OK ]   Unmounting /backup/vol2
+2026-07-13 13:21:27 [ OK ] Checking if /backup/vol3 is mounted on 192.168.2.85
+2026-07-13 13:21:27 [ OK ]   /backup/vol3 is mounted
+2026-07-13 13:21:27 [ OK ]   Unmounting /backup/vol3
+2026-07-13 13:21:28 [ OK ]   Checking Volume Group: EpicSUP
+2026-07-13 13:21:28 [ OK ] Check if EpicSUP is active
+2026-07-13 13:21:29 [ OK ]   LV test_vol1 appears active in EpicSUP
+2026-07-13 13:21:29 [ OK ]   LV test_vol2 appears active in EpicSUP
+2026-07-13 13:21:29 [ OK ]   LV test_vol3 appears active in EpicSUP
+2026-07-13 13:21:29 [ OK ]   Deactivating Volume Group: EpicSUP
+2026-07-13 13:21:29 [ OK ] Unmounting Filesystems
+2026-07-13 13:21:29 [ OK ] Checking if /backup/vol4 is mounted on 192.168.2.85
+2026-07-13 13:21:30 [ OK ]   /backup/vol4 is mounted
+2026-07-13 13:21:30 [ OK ]   Unmounting /backup/vol4
+2026-07-13 13:21:30 [ OK ] Checking if /backup/vol5 is mounted on 192.168.2.85
+2026-07-13 13:21:31 [ OK ]   /backup/vol5 is mounted
+2026-07-13 13:21:31 [ OK ]   Unmounting /backup/vol5
+2026-07-13 13:21:31 [ OK ]   Checking Volume Group: EpicSUP2
+2026-07-13 13:21:31 [ OK ] Check if EpicSUP2 is active
+2026-07-13 13:21:32 [ OK ]   LV test_vol4 appears active in EpicSUP2
+2026-07-13 13:21:32 [ OK ]   LV test_vol5 appears active in EpicSUP2
+2026-07-13 13:21:32 [ OK ]   Deactivating Volume Group: EpicSUP2
+2026-07-13 13:21:32 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:32 [ OK ]   Target Cleanup Completed
+2026-07-13 13:21:32 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:33 [ OK ] Detaching Volume Group REFRESH-VG-SUP-EPICVG-20260713163643 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:33 [ OK ]   Successfully detached Volume Group REFRESH-VG-SUP-EPICVG-20260713163643 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:33 [ OK ]   Deleting Volume Group REFRESH-VG-SUP-EPICVG-20260713163643
+2026-07-13 13:21:33 [ OK ] Detaching Volume Group REFRESH-VG-SUP-EPICvg2-20260713163643 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:33 [ OK ]   Successfully detached Volume Group REFRESH-VG-SUP-EPICvg2-20260713163643 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:33 [ OK ]   Deleting Volume Group REFRESH-VG-SUP-EPICvg2-20260713163643
+2026-07-13 13:21:34 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:34 [ OK ] Storage successfully detached from 192.168.2.85
+2026-07-13 13:21:34 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:34 [ OK ] Connecting to 192.168.2.65 to freeze ODB
+2026-07-13 13:21:34 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:34 [ OK ]   Database frozen successfully
+2026-07-13 13:21:34 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:34 [ OK ] Retrieving Volume Group details for: EPICVG
+2026-07-13 13:21:34 [ OK ] Retrieving Volume Group details for: EPICvg2
+2026-07-13 13:21:34 [ OK ] Creating Recovery Point for Volume Group: EPICVG
+2026-07-13 13:21:34 [ OK ]   RP Name: REFRESH-VG-SUP-EPICVG-RP-20260713172134
+2026-07-13 13:21:34 [ OK ]   Task for Recovery Point for Volume Group created
+2026-07-13 13:21:34 [ OK ] Creating Recovery Point for Volume Group: EPICvg2
+2026-07-13 13:21:34 [ OK ]   RP Name: REFRESH-VG-SUP-EPICvg2-RP-20260713172134
+2026-07-13 13:21:35 [ OK ]   Task for Recovery Point for Volume Group created
+2026-07-13 13:21:35 [ OK ] Waiting for Recovery Point creation task to complete for Volume Group: EPICVG
+2026-07-13 13:21:40 [ OK ]   Recovery Point creation for Volume Group Successful
+2026-07-13 13:21:40 [ OK ]   Collecting details about created Recovery Point
+2026-07-13 13:21:40 [ OK ] Waiting for Recovery Point creation task to complete for Volume Group: EPICvg2
+2026-07-13 13:21:40 [ OK ]   Recovery Point creation for Volume Group Successful
+2026-07-13 13:21:40 [ OK ]   Collecting details about created Recovery Point
+2026-07-13 13:21:40 [ OK ] Cloning Recovery Point to new Volume Group for: EPICVG
+2026-07-13 13:21:40 [ OK ]   New VG Name will be: REFRESH-VG-SUP-EPICVG-20260713172134
+2026-07-13 13:21:40 [ OK ]   Task creation for cloning for Volume Group Successful
+2026-07-13 13:21:40 [ OK ] Cloning Recovery Point to new Volume Group for: EPICvg2
+2026-07-13 13:21:40 [ OK ]   New VG Name will be: REFRESH-VG-SUP-EPICvg2-20260713172134
+2026-07-13 13:21:41 [ OK ]   Task creation for cloning for Volume Group Successful
+2026-07-13 13:21:41 [ OK ]   Waiting for VG clone creation task to complete for Volume Group: REFRESH-VG-SUP-EPICVG-20260713172134
+2026-07-13 13:21:46 [ OK ]   Task for cloning Volume Group Successful
+2026-07-13 13:21:46 [ OK ]   Waiting for VG clone creation task to complete for Volume Group: REFRESH-VG-SUP-EPICvg2-20260713172134
+2026-07-13 13:21:46 [ OK ]   Task for cloning Volume Group Successful
+2026-07-13 13:21:46 [ OK ] Attaching new Volume Group REFRESH-VG-SUP-EPICVG-20260713172134 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:46 [ OK ]   Successfully attached Volume Group EPICVG to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:46 [ OK ] Attaching new Volume Group REFRESH-VG-SUP-EPICvg2-20260713172134 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:46 [ OK ]   Successfully attached Volume Group EPICvg2 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:21:46 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:46 [ OK ] Storage successfully attached to 192.168.2.85
+2026-07-13 13:21:46 [ OK ] -----------------------------------------------------
+2026-07-13 13:21:46 [ OK ] Connecting to 192.168.2.65 to thaw ODB
+2026-07-13 13:21:47 [ OK ] ------------------------------------
+2026-07-13 13:21:47 [ OK ]   Database thawed successfully
+2026-07-13 13:21:47 [ OK ] ------------------------------------
+2026-07-13 13:21:47 [ OK ] Ensuring that mount points exist on 192.168.2.85
+2026-07-13 13:21:47 [ OK ] Verifying: /backup/vol1 for LV test_vol1
+2026-07-13 13:21:48 [ OK ]   Mount is Good
+2026-07-13 13:21:48 [ OK ] Verifying: /backup/vol2 for LV test_vol2
+2026-07-13 13:21:48 [ OK ]   Mount is Good
+2026-07-13 13:21:48 [ OK ] Verifying: /backup/vol3 for LV test_vol3
+2026-07-13 13:21:49 [ OK ]   Mount is Good
+2026-07-13 13:21:49 [ OK ] Verifying: /backup/vol4 for LV test_vol4
+2026-07-13 13:21:50 [ OK ]   Mount is Good
+2026-07-13 13:21:50 [ OK ] Verifying: /backup/vol5 for LV test_vol5
+2026-07-13 13:21:50 [ OK ]   Mount is Good
+2026-07-13 13:21:51 [ OK ] Performing disk rescan operations on 192.168.2.85
+2026-07-13 13:21:51 [ OK ]   Executing Linux SCSI hardware rescan
+2026-07-13 13:21:53 [ OK ]   Performing full pvscan of all devices for LV
+2026-07-13 13:21:54 [ OK ]   Forcing LVM to scan all devices (bypassing filter)...
+2026-07-13 13:21:55 [ OK ] Activating LVM Volume Groups and Mounting XFS filesystems
+2026-07-13 13:21:55 [ OK ] Processing VG: EpicVG
+2026-07-13 13:21:55 [ OK ]   Making EpicVG active
+2026-07-13 13:21:55 [ OK ]   Waiting for udev to populate EpicVG device mapper nodes
+2026-07-13 13:22:02 [ OK ]   Renaming Volume Group from EpicVG to EpicSUP
+2026-07-13 13:22:02 [ OK ]   Reactivating EpicSUP
+2026-07-13 13:22:03 [ OK ]   Waiting for udev to populate EpicSUP device mapper nodes
+2026-07-13 13:22:08 [ OK ] Mounting test_vol1 to /backup/vol1
+2026-07-13 13:22:08 [ OK ]   Determining LVM path for test_vol1
+2026-07-13 13:22:09 [ OK ]   Performing Mount onto   /dev/EpicSUP/test_vol1
+2026-07-13 13:22:09 [ OK ]  Unmounting to updating XFS UUID
+2026-07-13 13:22:09 [ OK ]   Unmounting /backup/vol1
+2026-07-13 13:22:10 [ OK ]   Generating new UUID for   /dev/EpicSUP/test_vol1
+2026-07-13 13:22:11 [ OK ]   Remounting /backup/vol1 Read/Write
+2026-07-13 13:22:11 [ OK ] Mounting test_vol2 to /backup/vol2
+2026-07-13 13:22:11 [ OK ]   Determining LVM path for test_vol2
+2026-07-13 13:22:12 [ OK ]   Performing Mount onto   /dev/EpicSUP/test_vol2
+2026-07-13 13:22:13 [ OK ]  Unmounting to updating XFS UUID
+2026-07-13 13:22:13 [ OK ]   Unmounting /backup/vol2
+2026-07-13 13:22:13 [ OK ]   Generating new UUID for   /dev/EpicSUP/test_vol2
+2026-07-13 13:22:14 [ OK ]   Remounting /backup/vol2 Read/Write
+2026-07-13 13:22:15 [ OK ] Mounting test_vol3 to /backup/vol3
+2026-07-13 13:22:15 [ OK ]   Determining LVM path for test_vol3
+2026-07-13 13:22:16 [ OK ]   Performing Mount onto   /dev/EpicSUP/test_vol3
+2026-07-13 13:22:16 [ OK ]  Unmounting to updating XFS UUID
+2026-07-13 13:22:16 [ OK ]   Unmounting /backup/vol3
+2026-07-13 13:22:17 [ OK ]   Generating new UUID for   /dev/EpicSUP/test_vol3
+2026-07-13 13:22:18 [ OK ]   Remounting /backup/vol3 Read/Write
+2026-07-13 13:22:19 [ OK ] Processing VG: EpicVG2
+2026-07-13 13:22:19 [ OK ]   Making EpicVG2 active
+2026-07-13 13:22:19 [ OK ]   Waiting for udev to populate EpicVG2 device mapper nodes
+2026-07-13 13:22:25 [ OK ]   Renaming Volume Group from EpicVG2 to EpicSUP2
+2026-07-13 13:22:26 [ OK ]   Reactivating EpicSUP2
+2026-07-13 13:22:27 [ OK ]   Waiting for udev to populate EpicSUP2 device mapper nodes
+2026-07-13 13:22:32 [ OK ] Mounting test_vol4 to /backup/vol4
+2026-07-13 13:22:32 [ OK ]   Determining LVM path for test_vol4
+2026-07-13 13:22:32 [ OK ]   Performing Mount onto   /dev/EpicSUP2/test_vol4
+2026-07-13 13:22:33 [ OK ]  Unmounting to updating XFS UUID
+2026-07-13 13:22:33 [ OK ]   Unmounting /backup/vol4
+2026-07-13 13:22:33 [ OK ]   Generating new UUID for   /dev/EpicSUP2/test_vol4
+2026-07-13 13:22:34 [ OK ]   Remounting /backup/vol4 Read/Write
+2026-07-13 13:22:35 [ OK ] Mounting test_vol5 to /backup/vol5
+2026-07-13 13:22:35 [ OK ]   Determining LVM path for test_vol5
+2026-07-13 13:22:36 [ OK ]   Performing Mount onto   /dev/EpicSUP2/test_vol5
+2026-07-13 13:22:37 [ OK ]  Unmounting to updating XFS UUID
+2026-07-13 13:22:37 [ OK ]   Unmounting /backup/vol5
+2026-07-13 13:22:37 [ OK ]   Generating new UUID for   /dev/EpicSUP2/test_vol5
+2026-07-13 13:22:38 [ OK ]   Remounting /backup/vol5 Read/Write
+2026-07-13 13:22:39 [ OK ] -----------------------------------------------------
+2026-07-13 13:22:39 [ OK ] Storage successfully imported and filesystems mounted
+2026-07-13 13:22:39 [ OK ] -----------------------------------------------------
+2026-07-13 13:22:39 [ OK ] Removing Iris Lock Files in /backup/vol1
+2026-07-13 13:22:39 [ OK ] Removing Iris Lock Files in /backup/vol2
+2026-07-13 13:22:40 [ OK ] Removing Iris Lock Files in /backup/vol3
+2026-07-13 13:22:40 [ OK ] Removing Iris Lock Files in /backup/vol4
+2026-07-13 13:22:41 [ OK ] Removing Iris Lock Files in /backup/vol5
+2026-07-13 13:22:41 [ OK ] ------------------------------------
+2026-07-13 13:22:41 [ OK ]   Lock File Cleanup Complete
+2026-07-13 13:22:41 [ OK ] ------------------------------------
+```
+
+Backup
+
+```console
+2026-07-13 13:49:43 [ OK ] ------------------------------------
+2026-07-13 13:49:43 [ OK ]  Starting BACKUP
+2026-07-13 13:49:43 [ OK ] ------------------------------------
+2026-07-13 13:49:43 [ OK ] Unmounting Filesystems
+2026-07-13 13:49:43 [ OK ] Checking if /backup/vol1 is mounted on 192.168.2.85
+2026-07-13 13:49:43 [ OK ]   /backup/vol1 is mounted
+2026-07-13 13:49:43 [ OK ]   Unmounting /backup/vol1
+2026-07-13 13:49:44 [ OK ] Checking if /backup/vol2 is mounted on 192.168.2.85
+2026-07-13 13:49:44 [ OK ]   /backup/vol2 is mounted
+2026-07-13 13:49:44 [ OK ]   Unmounting /backup/vol2
+2026-07-13 13:49:45 [ OK ] Checking if /backup/vol3 is mounted on 192.168.2.85
+2026-07-13 13:49:46 [ OK ]   /backup/vol3 is mounted
+2026-07-13 13:49:46 [ OK ]   Unmounting /backup/vol3
+2026-07-13 13:49:46 [ OK ]   Checking Volume Group: EpicBKP
+2026-07-13 13:49:46 [ OK ] Check if EpicBKP is active
+2026-07-13 13:49:47 [ OK ]   LV test_vol1 appears active in EpicBKP
+2026-07-13 13:49:47 [ OK ]   LV test_vol2 appears active in EpicBKP
+2026-07-13 13:49:47 [ OK ]   LV test_vol3 appears active in EpicBKP
+2026-07-13 13:49:47 [ OK ]   Deactivating Volume Group: EpicBKP
+2026-07-13 13:49:47 [ OK ] Unmounting Filesystems
+2026-07-13 13:49:47 [ OK ] Checking if /backup/vol4 is mounted on 192.168.2.85
+2026-07-13 13:49:48 [ OK ]   /backup/vol4 is mounted
+2026-07-13 13:49:48 [ OK ]   Unmounting /backup/vol4
+2026-07-13 13:49:48 [ OK ] Checking if /backup/vol5 is mounted on 192.168.2.85
+2026-07-13 13:49:49 [ OK ]   /backup/vol5 is mounted
+2026-07-13 13:49:49 [ OK ]   Unmounting /backup/vol5
+2026-07-13 13:49:49 [ OK ]   Checking Volume Group: EpicBKP2
+2026-07-13 13:49:49 [ OK ] Check if EpicBKP2 is active
+2026-07-13 13:49:50 [ OK ]   LV test_vol4 appears active in EpicBKP2
+2026-07-13 13:49:50 [ OK ]   LV test_vol5 appears active in EpicBKP2
+2026-07-13 13:49:50 [ OK ]   Deactivating Volume Group: EpicBKP2
+2026-07-13 13:49:50 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:50 [ OK ]   Target Cleanup Completed
+2026-07-13 13:49:50 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:51 [ OK ] Detaching Volume Group BACKUP-EPICVG-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:51 [ OK ]   Successfully detached Volume Group BACKUP-EPICVG-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:51 [ OK ]   Deleting Volume Group BACKUP-EPICVG-20260713174546
+2026-07-13 13:49:51 [ OK ]   Successfully deleted Volume Group BACKUP-EPICVG-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:51 [ OK ] Detaching Volume Group BACKUP-EPICvg2-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:51 [ OK ]   Successfully detached Volume Group BACKUP-EPICvg2-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:51 [ OK ]   Deleting Volume Group BACKUP-EPICvg2-20260713174546
+2026-07-13 13:49:52 [ OK ]   Successfully deleted Volume Group BACKUP-EPICvg2-20260713174546 from Proxy VM EpicTarget_RHEL10
+2026-07-13 13:49:52 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:52 [ OK ] Storage successfully detached from 192.168.2.85
+2026-07-13 13:49:52 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:52 [ OK ] Connecting to 192.168.2.65 to freeze ODB
+2026-07-13 13:49:52 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:52 [ OK ]   Database frozen successfully
+2026-07-13 13:49:52 [ OK ] -----------------------------------------------------
+2026-07-13 13:49:52 [ OK ] Retrieving Volume Group details for: EPICVG
+2026-07-13 13:49:52 [ OK ] Retrieving Volume Group details for: EPICvg2
+2026-07-13 13:49:52 [ OK ] Creating Recovery Point for Volume Group: EPICVG
+2026-07-13 13:49:52 [ OK ]   RP Name: BACKUP-EPICVG-RP-20260713174952
+2026-07-13 13:49:52 [ OK ]   Task for Recovery Point for Volume Group created
+2026-07-13 13:49:52 [ OK ] Creating Recovery Point for Volume Group: EPICvg2
+2026-07-13 13:49:52 [ OK ]   RP Name: BACKUP-EPICvg2-RP-20260713174952
+2026-07-13 13:49:53 [ OK ]   Task for Recovery Point for Volume Group created
+2026-07-13 13:49:53 [ OK ] Waiting for Recovery Point creation task to complete for Volume Group: EPICVG
+2026-07-13 13:49:58 [ OK ]   Recovery Point creation for Volume Group Successful
+2026-07-13 13:49:58 [ OK ]   Collecting details about created Recovery Point
+2026-07-13 13:49:58 [ OK ] Waiting for Recovery Point creation task to complete for Volume Group: EPICvg2
+2026-07-13 13:49:58 [ OK ]   Recovery Point creation for Volume Group Successful
+2026-07-13 13:49:58 [ OK ]   Collecting details about created Recovery Point
+2026-07-13 13:49:58 [ OK ] Cloning Recovery Point to new Volume Group for: EPICVG
+2026-07-13 13:49:58 [ OK ]   New VG Name will be: BACKUP-EPICVG-20260713174952
+2026-07-13 13:49:58 [ OK ]   Task creation for cloning for Volume Group Successful
+2026-07-13 13:49:58 [ OK ] Cloning Recovery Point to new Volume Group for: EPICvg2
+2026-07-13 13:49:58 [ OK ]   New VG Name will be: BACKUP-EPICvg2-20260713174952
+2026-07-13 13:49:59 [ OK ]   Task creation for cloning for Volume Group Successful
+2026-07-13 13:49:59 [ OK ]   Waiting for VG clone creation task to complete for Volume Group: BACKUP-EPICVG-20260713174952
+2026-07-13 13:50:04 [ OK ]   Task for cloning Volume Group Successful
+2026-07-13 13:50:04 [ OK ]   Waiting for VG clone creation task to complete for Volume Group: BACKUP-EPICvg2-20260713174952
+2026-07-13 13:50:04 [ OK ]   Task for cloning Volume Group Successful
+2026-07-13 13:50:04 [ OK ] Attaching new Volume Group BACKUP-EPICVG-20260713174952 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:50:04 [ OK ]   Successfully attached Volume Group EPICVG to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:50:04 [ OK ] Attaching new Volume Group BACKUP-EPICvg2-20260713174952 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:50:04 [ OK ]   Successfully attached Volume Group EPICvg2 to Proxy VM EpicTarget_RHEL10
+2026-07-13 13:50:04 [ OK ] -----------------------------------------------------
+2026-07-13 13:50:04 [ OK ] Storage successfully attached to 192.168.2.85
+2026-07-13 13:50:04 [ OK ] -----------------------------------------------------
+2026-07-13 13:50:04 [ OK ] Connecting to 192.168.2.65 to thaw ODB
+2026-07-13 13:50:05 [ OK ] ------------------------------------
+2026-07-13 13:50:05 [ OK ]   Database thawed successfully
+2026-07-13 13:50:05 [ OK ] ------------------------------------
+2026-07-13 13:50:05 [ OK ] Ensuring that mount points exist on 192.168.2.85
+2026-07-13 13:50:05 [ OK ] Verifying: /backup/vol1 for LV test_vol1
+2026-07-13 13:50:06 [ OK ]   Mount is Good
+2026-07-13 13:50:06 [ OK ] Verifying: /backup/vol2 for LV test_vol2
+2026-07-13 13:50:06 [ OK ]   Mount is Good
+2026-07-13 13:50:06 [ OK ] Verifying: /backup/vol3 for LV test_vol3
+2026-07-13 13:50:07 [ OK ]   Mount is Good
+2026-07-13 13:50:07 [ OK ] Verifying: /backup/vol4 for LV test_vol4
+2026-07-13 13:50:08 [ OK ]   Mount is Good
+2026-07-13 13:50:08 [ OK ] Verifying: /backup/vol5 for LV test_vol5
+2026-07-13 13:50:08 [ OK ]   Mount is Good
+2026-07-13 13:50:09 [ OK ] Performing disk rescan operations on 192.168.2.85
+2026-07-13 13:50:09 [ OK ]   Executing Linux SCSI hardware rescan
+2026-07-13 13:50:11 [ OK ]   Performing full pvscan of all devices for LV
+2026-07-13 13:50:12 [ OK ]   Forcing LVM to scan all devices (bypassing filter)...
+2026-07-13 13:50:13 [ OK ] Activating LVM Volume Groups and Mounting XFS filesystems
+2026-07-13 13:50:13 [ OK ] Processing VG: EpicVG
+2026-07-13 13:50:13 [ OK ]   Making EpicVG active
+2026-07-13 13:50:14 [ OK ]   Waiting for udev to populate EpicVG device mapper nodes
+2026-07-13 13:50:20 [ OK ]   Renaming Volume Group from EpicVG to EpicBKP
+2026-07-13 13:50:21 [ OK ]   Reactivating EpicBKP
+2026-07-13 13:50:22 [ OK ]   Waiting for udev to populate EpicBKP device mapper nodes
+2026-07-13 13:50:27 [ OK ] Mounting test_vol1 to /backup/vol1
+2026-07-13 13:50:27 [ OK ]   Determining LVM path for test_vol1
+2026-07-13 13:50:27 [ OK ]   Performing Mount onto   /dev/EpicBKP/test_vol1
+2026-07-13 13:50:29 [ OK ] Mounting test_vol2 to /backup/vol2
+2026-07-13 13:50:29 [ OK ]   Determining LVM path for test_vol2
+2026-07-13 13:50:30 [ OK ]   Performing Mount onto   /dev/EpicBKP/test_vol2
+2026-07-13 13:50:31 [ OK ] Mounting test_vol3 to /backup/vol3
+2026-07-13 13:50:31 [ OK ]   Determining LVM path for test_vol3
+2026-07-13 13:50:32 [ OK ]   Performing Mount onto   /dev/EpicBKP/test_vol3
+2026-07-13 13:50:33 [ OK ] Processing VG: EpicVG2
+2026-07-13 13:50:33 [ OK ]   Making EpicVG2 active
+2026-07-13 13:50:33 [ OK ]   Waiting for udev to populate EpicVG2 device mapper nodes
+2026-07-13 13:50:40 [ OK ]   Renaming Volume Group from EpicVG2 to EpicBKP2
+2026-07-13 13:50:41 [ OK ]   Reactivating EpicBKP2
+2026-07-13 13:50:41 [ OK ]   Waiting for udev to populate EpicBKP2 device mapper nodes
+2026-07-13 13:50:46 [ OK ] Mounting test_vol4 to /backup/vol4
+2026-07-13 13:50:46 [ OK ]   Determining LVM path for test_vol4
+2026-07-13 13:50:47 [ OK ]   Performing Mount onto   /dev/EpicBKP2/test_vol4
+2026-07-13 13:50:49 [ OK ] Mounting test_vol5 to /backup/vol5
+2026-07-13 13:50:49 [ OK ]   Determining LVM path for test_vol5
+2026-07-13 13:50:49 [ OK ]   Performing Mount onto   /dev/EpicBKP2/test_vol5
+2026-07-13 13:50:51 [ OK ] -----------------------------------------------------
+2026-07-13 13:50:51 [ OK ] Storage successfully imported and filesystems mounted
+2026-07-13 13:50:51 [ OK ] -----------------------------------------------------
+```
 
 ## Troubleshooting
 

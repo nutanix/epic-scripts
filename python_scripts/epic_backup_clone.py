@@ -22,6 +22,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger("StatusLogger")
 
 def load_config(config_file):
+    # Loads the configuration file, and sets a bunch of our global variables 
+    # Appropriately for managing the refresh process
+
     global PC_IP, USERNAME, PASSWORD, RECOVERY_POINT_RETENTION_DAYS, COPY_TYPE
     global SOURCE_ENV, TARGET_ENV, SOURCE_VM_NAME, SOURCE_HOST, SOURCE_USER
     global FREEZE_COMMAND, THAW_COMMAND, TARGET_VM_NAME, TARGET_HOST, TARGET_USER, VGS
@@ -195,6 +198,7 @@ def get_headers(need_request_id=None):
     return headers
 
 def ntnx_get_request(url,req_params=None,need_request_id=None):
+    logger.debug(f"NTNX Request: {url}")
     response = requests.get(
         url,
         auth=(USERNAME, PASSWORD),
@@ -202,12 +206,13 @@ def ntnx_get_request(url,req_params=None,need_request_id=None):
         verify=False,
         params=req_params
     )
-
+    logger.debug(f"Response: {response.status_code}")
     response.raise_for_status()
 
     return response.json()
 
 def ntnx_post_request(url,payload=None,need_request_id=None):
+    logger.debug(f"NTNX Request: {url}")
     response = requests.post(
         url,
         auth=(USERNAME, PASSWORD),
@@ -215,11 +220,12 @@ def ntnx_post_request(url,payload=None,need_request_id=None):
         json = payload,
         verify=False
     )
-
+    logger.debug(f"Response: {response.status_code}")
     response.raise_for_status()
     return response.json()
 
 def ntnx_delete_request(url, need_request_id=None):
+    logger.debug(f"NTNX Request: {url}")
     response = requests.delete(
         url,
         auth=(USERNAME, PASSWORD),
@@ -227,6 +233,7 @@ def ntnx_delete_request(url, need_request_id=None):
         verify=False
     )
 
+    logger.debug(f"Response: {response.status_code}")
     response.raise_for_status()
     return response.json()
 
@@ -302,7 +309,6 @@ def clone_vg_rp(cluster_ref, rp_id, vg_rp_id, new_vg_name):
     response = ntnx_post_request(f"{RP_API_URL}/{rp_id}/$actions/restore",clone_payload,True)
     return response
 
-
 def attach_vg_to_vm(vg_id, vm_uuid):
     attach_payload = { "extId": vm_uuid } 
     response = ntnx_post_request(f"{VG_API_URL}/{vg_id}/$actions/attach-vm",attach_payload,True)
@@ -316,7 +322,7 @@ def detach_vg_from_vm(vg_id, vm_uuid):
     return response
 
 def delete_ntnxvg(vg_id):
-    response = ntnx_delete_request(f"{VG_API_URL}/{vg_id}")
+    response = ntnx_delete_request(f"{VG_API_URL}/{vg_id}",True)
     return response
 
 def wait_on_task(task_url, check_interval=5):
@@ -332,6 +338,8 @@ def wait_on_task(task_url, check_interval=5):
 
 
 def clone_and_attach_vgs():
+    # Clone the production Volume Group and attach it to the Target VM
+
     # Generate Timestamps and Expiration Dates for the snapshots
     future_date = datetime.now(timezone.utc) + timedelta(days=RECOVERY_POINT_RETENTION_DAYS)
     recovery_point_expiration = future_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -447,6 +455,9 @@ def clone_and_attach_vgs():
     logger.info("-----------------------------------------------------")
 
 def detach_and_delete_vgs(delete_vg=False):
+    # This function detaches any VGs currently attached to the mount host, and 
+    # optionally deletes them, cleaning up and preparing for the refresh mount
+
     # Get the Proxy VM's UUID, we'll need it later for unmounting
     proxy_vm_uuid = get_vm_uuid(TARGET_VM_NAME)
     attached_vgids = get_attached_vgs(proxy_vm_uuid) 
@@ -502,6 +513,8 @@ def thaw_prod():
         raise RuntimeError(error_msg)
 
 def mount_proxy():
+    # Perform all the Linux actions to import the volume groups, perform
+    # any renaming, and mount the filesystems.
     ensure_mount_points_exist()
 
     logger.debug("Collecting lsblk information from proxy before rescans")
@@ -700,7 +713,6 @@ def clean_proxy():
 
 
 def setup_logging():
-
     # Setup our output logging
     logger.setLevel(logging.DEBUG)
     if logger.hasHandlers():
@@ -716,6 +728,7 @@ def setup_logging():
     logger.addHandler(console_handler)
 
 def clear_lock_files():
+    # Clear out all the Iris lock files that remain after the clone
     for vg in VGS:
         for lv_name in vg['mounts'].keys():
             mp_name = vg['mounts'][lv_name]
@@ -736,7 +749,7 @@ if __name__ == "__main__":
     logger.info("------------------------------------")
 
     clean_proxy()
-    detach_and_delete_vgs(True)
+    detach_and_delete_vgs(delete_vg=True)
 
     # This wraps the freeze and clone operations in an exception catching block
     # so we will always thaw if we're frozen and something happens during the clone

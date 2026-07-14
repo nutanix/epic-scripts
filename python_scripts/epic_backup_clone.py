@@ -199,6 +199,7 @@ def get_headers(need_request_id=None):
 
 def ntnx_get_request(url,req_params=None,need_request_id=None):
     logger.debug(f"NTNX Request: {url}")
+    time.sleep(1)   # Keep from hitting API Rate Limits
     response = requests.get(
         url,
         auth=(USERNAME, PASSWORD),
@@ -213,6 +214,7 @@ def ntnx_get_request(url,req_params=None,need_request_id=None):
 
 def ntnx_post_request(url,payload=None,need_request_id=None):
     logger.debug(f"NTNX Request: {url}")
+    time.sleep(1)   # Keep from hitting API Rate Limits
     response = requests.post(
         url,
         auth=(USERNAME, PASSWORD),
@@ -226,6 +228,7 @@ def ntnx_post_request(url,payload=None,need_request_id=None):
 
 def ntnx_delete_request(url, need_request_id=None):
     logger.debug(f"NTNX Request: {url}")
+    time.sleep(1)   # Keep from hitting API Rate Limits
     response = requests.delete(
         url,
         auth=(USERNAME, PASSWORD),

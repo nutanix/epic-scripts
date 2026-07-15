@@ -7,6 +7,8 @@ import time
 import logging
 import argparse
 import yaml
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime, timedelta, timezone
 
 # Setup parameter parsing
@@ -42,35 +44,44 @@ def load_config(config_file):
         print(f"[CRIT] Error parsing YAML file: {e}")
         sys.exit(1)
 
-    # PC Info
-    PC_IP = config['prism_central']['ip']
-    USERNAME = config['prism_central']['username']
-    PASSWORD = config['prism_central']['password']
+    try:
+        # PC Info
+        PC_IP = config['prism_central']['ip']
+        USERNAME = config['prism_central']['username']
+        PASSWORD = config['prism_central']['password']
 
-    # Job Configuration
-    RECOVERY_POINT_RETENTION_DAYS = config['job_settings']['recovery_point_retention_days']
-    DELETE_VG = config['job_settings']['delete_vg_after_disconnect']
-    COPY_TYPE = config['job_settings']['copy_type']
-    SOURCE_ENV = config['job_settings']['source_env']
+        # Job Configuration Required Parameters
+        COPY_TYPE = config['job_settings']['copy_type']
+        SOURCE_ENV = config['job_settings']['source_env']
 
-    TARGET_ENV = None
-    if (COPY_TYPE == "REFRESH"):
-        TARGET_ENV = config['job_settings']['target_env']
+        # Job Configuration Optional parameters with defaults
+        RECOVERY_POINT_RETENTION_DAYS = config['job_settings'].get('recovery_point_retention_days',1)
+        DELETE_VG = config['job_settings'].get('delete_vg_after_disconnect',True)
+        TARGET_ENV = config['job_settings'].get('target_env', None)
 
-    # Source Parameters
-    SOURCE_VM_NAME = config['source']['vm_name']
-    SOURCE_HOST = config['source']['host']
-    SOURCE_USER = config['source']['user']
-    FREEZE_COMMAND = config['source']['freeze_command']
-    THAW_COMMAND = config['source']['thaw_command']
 
-    # Target Parameters
-    TARGET_VM_NAME = config['target']['vm_name']
-    TARGET_HOST = config['target']['host']
-    TARGET_USER = config['target']['user']
+        # Source Parameters
+        SOURCE_VM_NAME = config['source']['vm_name']
+        SOURCE_HOST = config['source']['host']
+        SOURCE_USER = config['source']['user']
+        FREEZE_COMMAND = config['source']['freeze_command']
+        THAW_COMMAND = config['source']['thaw_command']
 
-    # VG and LV configurations
-    VGS = config['vgs']
+        # Target Parameters
+        TARGET_VM_NAME = config['target']['vm_name']
+        TARGET_HOST = config['target']['host']
+        TARGET_USER = config['target']['user']
+
+        # VG and LV configurations
+        VGS = config['vgs']
+
+        if (not TARGET_ENV) and (COPY_TYPE == "REFRESH"):
+            print(f"[CRIT] TARGET_ENV must be defined in config file if COPY_TYPE is REFRESH")
+            sys.exit(1)
+
+    except KeyError as e:
+        print(f"[CRIT] missing parameter in configuration file: {e}")
+        sys.exit(1)
 
     # LVM bypass configuration string
     LVM_BYPASS = "--config 'devices { global_filter=[\"a|.*|\"] }'"
@@ -106,7 +117,6 @@ class StatusFormatter(logging.Formatter):
         result = super().format(record)
         self._style._fmt = orig_fmt
         return result
-    
 
 ## HOST FUNCTIONS
 def run_remote_command(host, user, command, check=True):
@@ -114,7 +124,7 @@ def run_remote_command(host, user, command, check=True):
     logger.debug(f"Running command on {host}: {command}")
 
     result = subprocess.run([
-        "ssh", "-o", "StrictHostKeyChecking=accept-new",
+        "ssh", "-o", "StrictHostKeyChecking=accept-new", "-o", "PasswordAuthentication=no",
         f"{user}@{host}", command
     ], capture_output=True, text=True)
 
@@ -130,7 +140,7 @@ def run_remote_command(host, user, command, check=True):
             logger.debug(f"{host} [STDERR]: {line}")
 
     if check and result.returncode != 0:
-        logger.error(f"Command failed on {host} with exit code {result.returncode}")
+        logger.error(f"Command failed on {host} with exit code {result.returncode}: {result.stderr}")
         raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
 
     return result
@@ -184,12 +194,31 @@ def check_vg_active(vg_name):
         if len(lv_attr) >= 5 and lv_attr[4] == 'a':
             logger.info(f"  LV {lv_name} appears active in {vg_name}")
             vg_active = True
-    
+
     return vg_active
 
 ## NUTANIX API FUNCTIONS
+def setup_session():
+    # Sets up our session and handle our rate limiting
+    global session     # This just makes it easier to pass around 
+    session = requests.session()
+    session.auth = (USERNAME,PASSWORD)
+    session.verify = False
+
+    # prep for API rate limiting
+    retries = Retry(
+        total=5,         
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET", "POST", "DELETE", "PUT"]
+    )
+
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+
 def get_headers(need_request_id=None):
-    """ Ses up our headers """
+    """ Sets up our headers """
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json"
@@ -198,51 +227,39 @@ def get_headers(need_request_id=None):
         headers["NTNX-Request-ID"] = str(uuid.uuid4())
     return headers
 
-def ntnx_get_request(url,req_params=None,need_request_id=None):
-    logger.debug(f"NTNX Request: {url}")
-    time.sleep(1)   # Keep from hitting API Rate Limits
-    response = requests.get(
-        url,
-        auth=(USERNAME, PASSWORD),
+def _make_request(method, url, payload=None, req_params=None, need_request_id=None):
+    """ Nutanix API Request Handler """
+    logger.debug(f"NTNX {method} Request: {url}")
+    
+    # We use the session here instead of requests.get/post directly
+    response = session.request(
+        method=method,
+        url=url,
         headers=get_headers(need_request_id),
-        verify=False,
-        params=req_params
+        params=req_params,
+        json=payload,
+        timeout=10
     )
+    
     logger.debug(f"Response: {response.status_code}")
     response.raise_for_status()
-
+    
+    # Safely handle APIs that return empty bodies
+    if response.status_code == 204 or not response.text:
+        return {}
+        
     return response.json()
 
-def ntnx_post_request(url,payload=None,need_request_id=None):
-    logger.debug(f"NTNX Request: {url}")
-    time.sleep(1)   # Keep from hitting API Rate Limits
-    response = requests.post(
-        url,
-        auth=(USERNAME, PASSWORD),
-        headers=get_headers(need_request_id),
-        json = payload,
-        verify=False
-    )
-    logger.debug(f"Response: {response.status_code}")
-    response.raise_for_status()
-    return response.json()
+def ntnx_get_request(url, req_params=None, need_request_id=None):
+    return _make_request("GET", url, req_params=req_params, need_request_id=need_request_id)
+
+def ntnx_post_request(url, payload=None, need_request_id=None):
+    return _make_request("POST", url, payload=payload, need_request_id=need_request_id)
 
 def ntnx_delete_request(url, need_request_id=None):
-    logger.debug(f"NTNX Request: {url}")
-    time.sleep(1)   # Keep from hitting API Rate Limits
-    response = requests.delete(
-        url,
-        auth=(USERNAME, PASSWORD),
-        headers=get_headers(need_request_id),
-        verify=False
-    )
-
-    logger.debug(f"Response: {response.status_code}")
-    response.raise_for_status()
-    return response.json()
+    return _make_request("DELETE", url, need_request_id=need_request_id)
 
 def get_vm_uuid(vm_name):
-
     params={'$filter': f"name eq '{vm_name}'"}
     response = ntnx_get_request(f"{VM_API_URL}/ahv/config/vms",params)
 
@@ -632,7 +649,7 @@ def mount_proxy():
             logger.info(f"  Determining LVM path for {logical_volume}")
 
             # Get the LV Path
-            cmd = f"sudo /sbin/lvs --noheadings -o lv_path {vg_name} | grep '/{logical_volume}$' " 
+            cmd = f"sudo /sbin/lvs --noheadings -o lv_path {vg_name}/{logical_volume}" 
             result = run_remote_command(TARGET_HOST,TARGET_USER,cmd,True)
             lv_path = result.stdout.rstrip()
 
@@ -716,6 +733,21 @@ def clean_proxy():
     logger.info("-----------------------------------------------------")
 
 
+def test_connectivity():
+    try:
+        # Lets get a list of VMs
+        logger.info(f"Testing Connectivity to PC at {PC_IP}")
+        ntnx_get_request(f"{VM_API_URL}/ahv/config/vms")
+        logger.info(f"Testing Connectivity to {SOURCE_HOST} as {SOURCE_USER}")
+        run_remote_command(SOURCE_HOST,SOURCE_USER,"date",True)
+        logger.info(f"Testing Connectivity to {TARGET_HOST} as {TARGET_USER}")
+        run_remote_command(TARGET_HOST,TARGET_USER,"date",True)
+    except Exception as e:
+        logger.critical(f"Connectivity Testing Failed: {e}")
+        logger.critical("Permission denied error may be due to incorrectly configured SSH keys or incorrect username")
+        sys.exit(1)
+
+
 def setup_logging():
     # Setup our output logging
     logger.setLevel(logging.DEBUG)
@@ -746,11 +778,14 @@ def clear_lock_files():
 if __name__ == "__main__":
 
     load_config(args.config)
+    setup_session()
     setup_logging()
 
     logger.info("------------------------------------")
     logger.info(f" Starting {COPY_TYPE}")
     logger.info("------------------------------------")
+
+    test_connectivity()
 
     clean_proxy()
     detach_and_delete_vgs(DELETE_VG)

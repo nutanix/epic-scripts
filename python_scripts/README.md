@@ -39,7 +39,7 @@ job_settings:
 
 source:
   vm_name: "<Name of Source VM>"    # Source VM Name in Prism Central (Case Sensitive)
-  host: "<IP of Source VM>"	        # Source VM IP address
+  host: "<IP of Source VM>"         # Source VM IP address
   user: "<SSH Username>"            # SSH user with ssh keys configured for authentication
   freeze_command: "sudo /epic/PRD/bin/instfreeze"    # Command to freeze ODB
   thaw_command: "sudo /epic/PRD/bin/instthaw"        # Command to thaw ODB
@@ -82,7 +82,7 @@ Executing a backup or refresh as configured in the YAML file with verbose debug 
 epic_backup_clone.py -c config.yml -v
 ```
 
-## Sample Output 
+## Sample Output
 
 Refresh
 

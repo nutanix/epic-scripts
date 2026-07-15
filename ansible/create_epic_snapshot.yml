@@ -1,0 +1,39 @@
+- name: Freeze ODB
+  hosts: source_host
+  become: true
+  roles: 
+    - freeze_odb
+
+- name: Create Volume Group Recovery Points
+  hosts: localhost
+  gather_facts: true
+  module_defaults:
+    group/nutanix.ncp.ntnx:
+      nutanix_host: "{{ prism_host }}"
+      nutanix_username: "{{ prism_username }}"
+      nutanix_password: "{{ prism_password }}"
+      validate_certs: "{{ validate_certs }}"
+  
+  tasks:
+    - block: 
+      - name: Create Recovery Point
+        include_role:
+          name: create_epic_rp
+      rescue:
+        - name: Log RP creation failure
+          ansible.builtin.debug:
+            msg: "Recovery Point creation failed for one or more Volume Groups."
+        - name: Set RP failure fact
+          set_fact:
+            rp_failed: true
+
+- name: Thaw ODB (Always do this)
+  hosts: source_host
+  become: true
+  roles:
+    - thaw_odb
+  post_tasks:
+    - name: Fail if RP creation failed
+      fail:
+        msg: "Volume Group Recovery Point creation failed."
+      when: hostvars['localhost'].get('rp_failed', false) | bool

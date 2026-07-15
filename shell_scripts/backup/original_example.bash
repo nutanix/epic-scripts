@@ -6,10 +6,11 @@ set -ex
 
 # Copyright (c) 2023 Nutanix Inc. All rights reserved.
 #
-# Maintainer:   Jon Kohler (jon@nutanix.com)
+# Maintainer:   Kurt Telep (kurt@nutanix.com)
 # Contributors: Scott Fadden
 #               Charles Sharp
 #               Kyle Anderson
+#               Jon Kohler
 
 #------------------------------------------------------------------------------
 
@@ -89,39 +90,50 @@ set -ex
 # Target ODB VM Details
 # - This would be a VM on the same cluster as the AHV_MOUNT_VM
 # - This is used to reach into that VM and do the freeze/thaw commands
-TARGET_ODB_IP="a.b.c.d"
+TARGET_ODB_IP="10.101.0.8"
 TARGET_ODB_ACCT="epicadm"
 TARGET_ODB_ENV[0]="prd"
 
 # Nutanix AOS Cluster Details
 # - Use the IP of any AOS CVM (controller VM) in the target cluster
 CVM_ACCT="nutanix"
-CVM_IP="a.b.c.d"
+CVM_IP="10.254.0.88"
 
 # Utility/Mount VM Details
 # - This is the VM in AHV that will mount the disk clones
 # - This variable needs to be the exact name of the VM as it is listed in
 #   Nutanix Prism.
-AHV_MOUNT_VM="MOUNT-VM-NAME-HERE"
+AHV_MOUNT_VM="epicbackup002vm"
 
 # Nutanix Volume Group (VG) name
 # - This script assumes there is a single data volume group per backup
 # - This VG may contain many individual vdisks and this script assumes that all
 #   disk(s) within the Nutanix-side volume group are aggregated into
 #   a Linux LVM2 volume group.
-NTNX_SOURCE_VG[0]="EPIC-DATA-VG-NAME-HERE"
+NTNX_SOURCE_VG[0]="irisprd01vm_prdvg"
+NTNX_SOURCE_VG[1]="irisprd01vm_prdinstvg"
+NTNX_SOURCE_VG[2]="irisprd01vm_prdjrnvg"
 
 
 # Linux LVM Volume Group name
 # - This is the name as listed in Linux "vgs" output.
 LVM_VG[0]="prdvg"
+LVM_VG[1]="prdinstvg"
+LVM_VG[3]="prdjrnvg"
 
-# Mount point for volume group
-# - This is the directory that the Linux LVM2 will be mounted on. This can be
+# Mount point for filesystems
+# - These are the directories you want the filesystems to be mounted.  These can be
 #   different than how it is mounted within the ODB instance itself, and would
 #   be the directory where you point the backup software to stream the data
-#   from.
-MP[0]="/mnt/backups/folder-name-here"
+#   from.  Note you will need to provide the LV name and the mountpoint you'd like it to mount on.
+#   in the format of "lv_name:/mountpoint"
+#   These should be provided in the ORDER you would like the filesystems mounted.
+
+MP[0]="need_source_lv:/clones/prd01"
+MP[1]="need_source_lv:/clones/epic"
+MP[2]="need_source_lv:/clones/prd"
+MP[3]="need_source_lv:/clones/jrn"
+MP[4]="need_source_lv:/clones/prdfiles"
 
 # Number of clones to keep
 # - This is useful to keep a couple of the recent clones on the system, such
@@ -158,6 +170,8 @@ myvmid=$(getmyvmid)
 myvmname=$(getmyvmname $myvmid)
 echo "This VM name is " $myvmname " vm_uuid " $myvmid
 
+NUM_FS=${#MP[@]}
+NUM_VG=${#LVM_VG[@]}
 #------------------------------------------------------------------------------
 
 ## BEGIN SCRIPT OPERATIONS
@@ -170,12 +184,27 @@ echo "STEP 1: Cleanup environment"
 #   the mount was previously detached separately, this would fail as the script
 #   as we have set -ex configured.
 echo "Unmount previous volumes and remove VG from LVM database"
-umount ${MP[0]} || true
-vgremove ${LVM_VG[0]} -y || true
+for (( i=$((NUM_FS - 1)); i>=0; i-- )); do
+  lv_name=`echo ${MP[i]} | cut -d: -f1`
+  mount_point=`echo ${MP[i]} | cut -d: -f2`
+  mkdir -p $mount_point 
+  /usr/bin/umount -f $mount_point || true
+done
+
+# Detach/Remove Volume Groups
+# - Note: We pipe these to || true because on the very first run or a run where
+#   the mount was previously detached separately, this would fail as the script
+#   as we have set -ex configured.   This is the same as filesystems above
+echo "Remove the Volume Groups"
+for (( i=0; i<NUM_VG; i++ )); do
+   vgremove ${LVM_VG[i]} -y || true
+done
 
 # Get the list of block devices excluding /dev/sda and sr0 cd rom drive
 # - Note: We also pipe this to || true as it would otherwise fail if the mount
 #   was previously detached (or otherwise not present).
+# TODO: This assumes that only ONE system is connected to this utility VM, and that is the one we are trying to backup. 
+#       If there are multiple, then we would need to add some additional logic to determine which device(s) to add/remove from LVM.
 devices=$(lsblk -ndo NAME | grep -v sda | grep -v sr0) || true
 
 # Add LVM devices dynamically
@@ -185,7 +214,7 @@ done
 
 # Detach existing clones from VM
 echo "Detach previous clone(s), if already attached"
-for i in `ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${TARGET_ODB_ENV[0]}' | awk '{ print $1 }'" 2> /dev/null`
+for i in $(ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep 'copy-${TARGET_ODB_ENV[0]}'" | awk '{ print $1 }' 2> /dev/null)
 do
   cnt=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.get ${i} | grep 'vm_uuid:.*${myvmid}' | wc -l " 2> /dev/null`
   echo "Count for " $i " is " $cnt
@@ -195,17 +224,22 @@ do
   fi
 done
 
-numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | wc -l" 2> /dev/null`
+# Determine how many clone sets we have 
+numclones=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]}" | cut -d '-' -f1 | sort -n | uniq | wc -l 2> /dev/null`
 
 # Delete expired clones
-echo "Current Number of Clones " $numclone " for " ${TARGET_ODB_ENV[0]}
-while (( numclone >= NUM_KEEP )); do
+#  With multiple VGs, clones are in sets based on the EPOCH timestamp prefix, so we're really keeping the numclones sets here
+#  The logic works, since as we remove the "oldest" individual clone, the remaining from the set will still be there and will be counted
+#  We're just relying on the fact that the EPOCH timestamp is the first part of the name and that all clones from a given clone operation 
+#  will share the same EPOCH timestamp prefix, so they will be removed together as a set.
+echo "Current Number of Clones " $numclones " for " ${TARGET_ODB_ENV[0]}
+while (( numclones >= NUM_KEEP )); do
   rmvg=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | /usr/bin/grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | /usr/bin/sort -n | /usr/bin/head -1 | /usr/bin/cut -d' ' -f1" 2> /dev/null`
   echo "Removing VG " ${rmvg}
   echo ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
   ssh ${CVM_ACCT}@${CVM_IP} "/usr/bin/echo yes | ${ACLI} vg.delete ${rmvg}"
-  numclone=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]} | wc -l" 2> /dev/null`
-  echo "Num clones left to delete " $numclone
+
+  numclones=`ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.list | grep [0-9].*-copy-${TARGET_ODB_ENV[0]}" | cut -d '-' -f1 | sort -n | uniq | wc -l 2> /dev/null`
 done
 
 
@@ -218,8 +252,11 @@ echo ""
 #------------------------------------------------------------------------------
 
 ## Step 3: Clone the VG
-echo "Creating new clone " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}
-ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]} clone_from_vg=${NTNX_SOURCE_VG[0]}
+
+for (( i=0; i<NUM_VG; i++ )); do
+   echo "Creating new clone " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}-${NTNX_SOURCE_VG[i]}
+   ssh ${CVM_ACCT}@${CVM_IP} ${ACLI} vg.clone ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}-${NTNX_SOURCE_VG[i]} clone_from_vg=${NTNX_SOURCE_VG[i]}
+done
 
 #------------------------------------------------------------------------------
 
@@ -231,8 +268,10 @@ echo ""
 
 ## Step 5: Mount the clone
 # Attach new clone
-echo "Attach " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}
-ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]} ${AHV_MOUNT_VM}"
+for (( i=0; i<NUM_VG; i++ )); do
+    echo "Attach " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]-${NTNX_SOURCE_VG[i]}}
+    ssh ${CVM_ACCT}@${CVM_IP} "${ACLI} vg.attach_to_vm ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}-${NTNX_SOURCE_VG[i]} ${AHV_MOUNT_VM}"
+done
 
 # Clean up LVM metadata
 pvscan --cache
@@ -251,17 +290,25 @@ vgchange -ay
 # Get device name
 dev_path=`/usr/sbin/lvdisplay ${LVM_VG[0]} | awk '{ if( $2 == "Path" ) print $3 }'`
 
-# Mount the File System
-/usr/bin/mount $dev_path ${MP[0]}
-df
-ret=`/usr/bin/df | grep "${MP[0]}" | wc -l`
-if(( ret == 1 )); then
-  echo "Backup file system ${MP[0]} is ready."
-else
-  echo "Backup file system ${MP[0]} did not mount properly"
-  exit
-fi
+# Mount the File Systems (and create the mount points if they don't already exist)
 
+for (( i = 0; i < NUM_FS; i++ )); do
+  lv_name=`echo ${MP[i]} | cut -d: -f1`
+  mount_point=`echo ${MP[i]} | cut -d: -f2`
+  device_path=`/usr/sbin/lvs -o lv_path --noheadings | grep ${lv_name} | awk '{ print $1 }'`
+  mkdir -p $mount_point
+  /usr/bin/mount $device_path $mount_point
+
+  # Validate the mount
+  df
+  ret=`/usr/bin/df | grep "${mount_point}" | wc -l`
+  if(( ret == 1 )); then
+    echo "Backup file system ${MP[i]} is ready."
+  else
+    echo "Backup file system ${MP[i]} did not mount properly"
+    exit
+  fi
+done
 #------------------------------------------------------------------------------
 
 echo "STEP 6: Kick off 3rd party out-of-system backup"
@@ -284,3 +331,4 @@ echo "Kick off backup for " ${PREFIX_DATE}-copy-${TARGET_ODB_ENV[0]}
 # TODOs
 # - Make runtime variables script inputs (script.sh $1 $2 $3) to avoid customization
 # - Expand error handling
+

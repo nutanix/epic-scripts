@@ -1,0 +1,28 @@
+---
+# tasks file for create_epic_rp
+- name: Fetch Source Volume Group info
+  nutanix.ncp.ntnx_volume_groups_info_v2:
+     filter: "name eq '{{ volume_group.ntnx_name }}'"
+  register: vginfo
+
+- name: Generating timestamp and expiration date for Recovery Point
+  ansible.builtin.set_fact:
+    timestamp: "{{ now(utc=true,fmt='%Y-%m-%d-%H:%M:%S')}}"
+    expiration_date: "{{ lookup('pipe', 'date -v+' ~ rp_retention_days|string ~ 'd +%Y-%m-%dT%H:%M:%SZ') if ansible_system == 'Darwin' else lookup('pipe', 'date -d \"+' ~ rp_retention_days|string ~ ' days\" +%Y-%m-%dT%H:%M:%SZ') }}"
+
+- name: "Create a Recovery Point for VG: {{ volume_group.ntnx_name }} "
+  nutanix.ncp.ntnx_recovery_points_v2:
+    state: present
+    name: "REFRESH-{{ source_env }}-{{target_env }}-FR-{{ timestamp }}"
+    expiration_time: "{{ expiration_date }}"
+    recovery_point_type: "CRASH_CONSISTENT"
+    volume_group_recovery_points:
+      - volume_group_ext_id: "{{ vginfo.response[0].ext_id }}"
+  register: rp_info
+
+- name: Timestamp Information
+  ansible.builtin.debug:
+    msg:
+    - "Recovery Point for VG: '{{ volume_group.ntnx_name }}' created successfully."
+    - "Recovery Point expiration in {{ rp_retention_days }} days, will expire at: {{ expiration_date }}"
+  when: rp_info is succeeded

@@ -1,0 +1,3 @@
+---
+max_age_minutes: 15
+load_balance_target_vg: false

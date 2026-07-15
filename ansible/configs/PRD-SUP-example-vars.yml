@@ -1,0 +1,92 @@
+# ------------------------------
+# Environment to Refresh  
+# This will be be a part of the name for VGs and RPs
+# ------------------------------
+source_env: "PRD"
+target_env: "SUP"
+
+# ------------------------------
+# Retention for Recovery Points for extra recovery capabilities
+# ------------------------------
+rp_retention_days: 7
+
+# ------------------------------
+# Maximum age for the Recovery Point we use as a source for our VGs
+# ------------------------------
+#max_age_minutes: 120
+max_age_minutes: 1
+
+# ------------------------------
+# Commands to Freeze and Thaw the database
+# ------------------------------
+iris_freeze_cmd: "/epic/{{ source_env }}/bin/instfreeze"
+iris_thaw_cmd: "/epic/{{ source_env }}/bin/instthaw"
+
+# ------------------------------
+# Volume Group Definitions and FS Mapping
+#
+#  - ntnx_name: Name of Volume Group in Prism Central
+#    source_host_vg_name: Name of Volume Group in Source Host
+#    target_host_vg_name: New Name of Volume Group on Target Host
+#    lvs:
+#        - source_lv: Name of LV in Source Host
+#          target_lv: New Name of LV on Target Host
+#          target_mp: Mount Point of LV on Target Host
+#
+#  *** IMPORTANT NOTE:
+#   The VG name must be different on the source and target.  This has no impact on LV or
+#   mount point names, just the VG name itself.
+#
+# ------------------------------
+vgs:
+  - ntnx_name: "EPICVG"
+    source_host_vg_name: "EpicVG"
+    target_host_vg_name: "EpicSupVG"
+    lvs:
+        - source_lv: 'test_vol1'
+          target_lv: '{{ target_env }}_vol1'
+          target_mp: '/{{target_env}}_v1'
+        - source_lv: 'test_vol2'
+          target_lv: '{{ target_env }}_vol2'
+          target_mp: '/{{target_env}}_v1/subdir'
+        - source_lv: 'test_vol3'
+          target_lv: '{{ target_env }}_vol3'
+          target_mp: '/{{target_env}}_v3'
+
+  - ntnx_name: "EPICvg2"
+    source_host_vg_name: "EpicVG2"
+    target_host_vg_name: "EpicSupVG2"
+    lvs:
+        - source_lv: 'test_vol4'
+          target_lv: '{{ target_env }}_vol4'
+          target_mp: '/{{target_env}}_v1/subdir2'
+        - source_lv: 'test_vol5'
+          target_lv: '{{ target_env }}_vol5'
+          target_mp: '/{{target_env}}_v5'
+
+# ------------------------------
+# Determine if the target VG should have load balancing enabled
+# This is generally not needed for non-Prod environments
+# ------------------------------
+load_balance_target_vg: false
+
+# ------------------------------
+# LVM nolocking option
+# Set to true if you need to use the --nolocking option with LVM commands
+# This can resolve known locking, failure, and timeout issues specifically with RHEL8
+# ------------------------------
+lvm_nolocking_option: false
+
+# ------------------------------
+# Nutanix Cluster Info
+# ------------------------------
+cluster_name: "NTNX_CLUSTER_NAME"
+prism_host: "PRISM_CENTRAL_IP_OR_FQDN"
+validate_certs: false
+
+# ------------------------------
+# Prism Central Credentials
+# These should be set in a vault or environment variable
+# ------------------------------
+prism_username: "{{ lookup('env','PRISM_USERNAME') | default('admin', true) }}"
+prism_password: "{{ lookup('env','PRISM_PASSWORD') }}"

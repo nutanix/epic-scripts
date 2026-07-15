@@ -1,0 +1,9 @@
+---
+# tasks file for freeze_odb
+- name: Freeze ODB
+  ansible.builtin.command: "{{ iris_freeze_cmd }}"
+
+- name: Successfully froze ODB
+  ansible.builtin.debug:
+    msg: "ODB has been successfully frozen."
+    

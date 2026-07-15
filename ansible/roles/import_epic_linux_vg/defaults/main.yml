@@ -1,0 +1,2 @@
+lvm_nolocking_option: false
+lvm_locking_param: ""

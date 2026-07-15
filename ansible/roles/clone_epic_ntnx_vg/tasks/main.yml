@@ -1,0 +1,12 @@
+- name:  Clone and Attach Epic Nutanix Volume Groups
+  ansible.builtin.include_tasks: clone_tasks.yml
+  vars:
+    source_env: "{{ source_env }}"
+    target_env: "{{ target_env }}"
+    rp_retention_days: "{{ rp_retention_days }}"
+    load_balance_target_vg: "{{ load_balance_target_vg }}"
+    volume_group: "{{ item }}"
+  loop: "{{ vgs }}"
+  loop_control:
+    label: "{{ item.ntnx_name }}"
+    loop_var: item

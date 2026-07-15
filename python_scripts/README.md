@@ -31,14 +31,15 @@ prism_central:
   password: "<PC Password>" # Password of PC User 
 
 job_settings:
-  recovery_point_retention_days: 1
-  copy_type: "REFRESH"      # "REFRESH" or "BACKUP"
-  source_env: "PRD"       
-  target_env: "SUP"         # Only needed if copy_type is REFRESH, if backup you can remove
+  recovery_point_retention_days: 1  # Number of days to retain the Recovery Point
+  delete_vg_after_disconnect: True  # Set to True if old Volume Groups should be deleted
+  copy_type: "REFRESH"              # "REFRESH" or "BACKUP"
+  source_env: "PRD"                 # The source environment for the backup or refresh
+  target_env: "SUP"                 # Only needed if copy_type is REFRESH, if backup you can remove
 
 source:
   vm_name: "<Name of Source VM>"    # Source VM Name in Prism Central (Case Sensitive)
-  host: "<IP of Source VM>"	    # Source VM IP address
+  host: "<IP of Source VM>"	        # Source VM IP address
   user: "<SSH Username>"            # SSH user with ssh keys configured for authentication
   freeze_command: "sudo /epic/PRD/bin/instfreeze"    # Command to freeze ODB
   thaw_command: "sudo /epic/PRD/bin/instthaw"        # Command to thaw ODB

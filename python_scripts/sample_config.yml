@@ -6,10 +6,11 @@ prism_central:
   password: "<PC Password>" # Security Note: Consider pulling this from an Environment Variable instead!
 
 job_settings:
-  recovery_point_retention_days: 1
-  copy_type: "REFRESH"      # "REFRESH" or "BACKUP"
-  source_env: "PRD"       
-  target_env: "SUP"         # Only needed if copy_type is REFRESH, if backup you can remove
+  copy_type: "REFRESH"              # "REFRESH" or "BACKUP"
+  source_env: "PRD"                 # Source Environment 
+  target_env: "SUP"                 # Only needed if copy_type is REFRESH, if backup you can remove
+  recovery_point_retention_days: 1  # The number of days to keep the Recovery Points 
+  delete_vg_after_disconnect: True  # Set to True if old Volume Groups should be deleted
 
 source:
   vm_name: "<Name of Source VM>"    # Source VM Name in Prism Central (Case Sensitive)

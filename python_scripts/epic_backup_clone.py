@@ -28,7 +28,7 @@ def load_config(config_file):
     global PC_IP, USERNAME, PASSWORD, RECOVERY_POINT_RETENTION_DAYS, COPY_TYPE
     global SOURCE_ENV, TARGET_ENV, SOURCE_VM_NAME, SOURCE_HOST, SOURCE_USER
     global FREEZE_COMMAND, THAW_COMMAND, TARGET_VM_NAME, TARGET_HOST, TARGET_USER, VGS
-    global LVM_BYPASS, DB_FROZEN, RP_API_URL, VG_API_URL, VM_API_URL
+    global LVM_BYPASS, DB_FROZEN, RP_API_URL, VG_API_URL, VM_API_URL, DELETE_VG
 
     # Load the configuration file
     try:
@@ -49,6 +49,7 @@ def load_config(config_file):
 
     # Job Configuration
     RECOVERY_POINT_RETENTION_DAYS = config['job_settings']['recovery_point_retention_days']
+    DELETE_VG = config['job_settings']['delete_vg_after_disconnect']
     COPY_TYPE = config['job_settings']['copy_type']
     SOURCE_ENV = config['job_settings']['source_env']
 
@@ -752,7 +753,7 @@ if __name__ == "__main__":
     logger.info("------------------------------------")
 
     clean_proxy()
-    detach_and_delete_vgs(delete_vg=True)
+    detach_and_delete_vgs(DELETE_VG)
 
     # This wraps the freeze and clone operations in an exception catching block
     # so we will always thaw if we're frozen and something happens during the clone

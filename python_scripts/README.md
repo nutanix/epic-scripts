@@ -2,7 +2,7 @@
 
 ## Overview
 
-This script handles creating and mounting clones of Epic ODB environments between a source and target system, or a source and backup proxy server
+This script handles creating and mounting clones of Epic ODB environments between a source and target system, or a source and backup proxy server with the Nutanix v4 API.
 
 The same script is used for both use cases, with the primary differences being:
 
@@ -17,9 +17,9 @@ The same script is used for both use cases, with the primary differences being:
 
 ## Prerequisites
 
-* The system running the script must be running Python3 and have the urllib3, requests, and PyYAML libraries installed
+* The system running the script must be running Python3 and have the urllib3, requests, and PyYAML libraries installed.   A requirements.txt file is provided to simplify installation via pip.
 * Appropriate credentials for Prism Central API access to Create and Delete Recovery Points and Volume Groups, and attach them to VMs
-* Authorized keys configured for users to access the source and target VMs for the mounts with appropriate sudo access configured
+* Authorized SSH keys configured for users to access the source and target VMs for the mounts with appropriate sudo access configured
 
 ## Example Configuration File
 
@@ -80,6 +80,12 @@ Executing a backup or refresh as configured in the YAML file with verbose debug 
 
 ```sh
 epic_backup_clone.py -c config.yml -v
+```
+
+In the rare occasion where you just need to disconnect the attached VG and delete it without attaching a new one
+
+```sh
+epic_backup_clone.py -c config.yml -x
 ```
 
 ## Sample Output

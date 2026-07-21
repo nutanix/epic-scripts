@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", action="store_true", help="Verbose debug output")
 parser.add_argument("-c", "--config", default="config.yml",help="Path to the YAML configuration file")
+parser.add_argument("-x", "--destroy", action="store_true", help="Detach and destroy VGs attached to target")
 args = parser.parse_args()
 
 # Disable SSL warnings for self-signed certificates
@@ -781,28 +782,49 @@ if __name__ == "__main__":
     setup_session()
     setup_logging()
 
-    logger.info("------------------------------------")
-    logger.info(f" Starting {COPY_TYPE}")
-    logger.info("------------------------------------")
+    if not args.destroy:
+        logger.info("------------------------------------")
+        logger.info(f" Starting {COPY_TYPE}")
+        logger.info("------------------------------------")
 
-    test_connectivity()
+        test_connectivity()
 
-    clean_proxy()
-    detach_and_delete_vgs(DELETE_VG)
+        clean_proxy()
+        detach_and_delete_vgs(DELETE_VG)
 
-    # This wraps the freeze and clone operations in an exception catching block
-    # so we will always thaw if we're frozen and something happens during the clone
-    # process
-    try:
+        # This wraps the freeze and clone operations in an exception catching block
+        # so we will always thaw if we're frozen and something happens during the clone
+        # process
+        try:
 
-        freeze_prod()
-        clone_and_attach_vgs()
+            freeze_prod()
+            clone_and_attach_vgs()
 
-    finally:
-    # Guarantee the production database gets thawed
-        thaw_prod()
+        finally:
+        # Guarantee the production database gets thawed
+            thaw_prod()
 
-    mount_proxy()
+        mount_proxy()
 
-    if COPY_TYPE == "REFRESH":
-        clear_lock_files()
+        if COPY_TYPE == "REFRESH":
+            clear_lock_files()
+
+    else:
+        logger.info("----------------------------------------")
+        logger.info(f" Destroying connected disks to target")
+        logger.info("----------------------------------------")
+
+        print("\n   WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING") 
+        print("    This action will detach and delete the VGs attached to the target ")
+        print("any data on those volumes created while attached to this system will be lost\n")
+         
+        choice = input("Are you sure you want to proceed?  Type 'DELETE' to continue: ").strip()
+
+        if choice == "DELETE":
+            test_connectivity()
+            clean_proxy()
+            detach_and_delete_vgs(True)
+            sys.exit(0)
+        else:
+            print("Aborting.  NO disks were deleted.")
+            sys.exit(0)
